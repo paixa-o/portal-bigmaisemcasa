@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#d32f2f" />
+    <title>Nova Devolução ou Troca - Portal Bigmais em Casa</title>
+    <link rel="manifest" href="../manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="../global/icon.svg" />
+    <link rel="stylesheet" href="../global/estilo.css" />
+  </head>
+
+  <body>
+    <header class="cabecalho-portal">
+      <div>
+        <h1>Portal Bigmais em Casa</h1>
+        <span>Módulo de Solicitação de Devolução (DEV) e Troca (TRC)</span>
+      </div>
+      <div class="acoes-cabecalho">
+        <a href="../index.html" class="btn-cabecalho-secundario">
+          ← Voltar às Solicitações
+        </a>
+      </div>
+    </header>
+
+    <form id="formDevolucao">
+      <!-- CONTROLE DA SOLICITAÇÃO -->
+      <div class="secao" style="margin-bottom: 20px">
+        <h3>Controle da Solicitação</h3>
+        <div class="linha-campo">
+          <div class="campo">
+            <label for="tiposolicitacao" class="obrigatorio">Modalidade:</label>
+            <select
+              id="tiposolicitacao"
+              name="tiposolicitacao"
+              required
+              onchange="alterarModalidadeSolicitacao()"
+            >
+              <option value="DEV">Devolução (DEV)</option>
+              <option value="TRC">Troca (TRC)</option>
+            </select>
+          </div>
+
+          <div class="campo">
+            <label for="idsolicitacao">ID da Solicitação:</label>
+            <input
+              type="text"
+              id="idsolicitacao"
+              name="idsolicitacao"
+              readonly
+              class="campo-automatico"
+            />
+          </div>
+
+          <div class="campo">
+            <label for="protocolo">Protocolo:</label>
+            <input
+              type="text"
+              id="protocolo"
+              name="protocolo"
+              readonly
+              class="campo-automatico"
+            />
+          </div>
+
+          <div class="campo">
+            <label for="datasolicitacao">Data e Hora:</label>
+            <input
+              type="text"
+              id="datasolicitacao"
+              name="datasolicitacao"
+              readonly
+              class="campo-automatico"
+            />
+          </div>
+
+          <div class="campo">
+            <label for="loja" class="obrigatorio">Loja:</label>
+            <select id="loja" name="loja" required>
+              <option value="">-- Selecione a loja --</option>
+              <option value="Loja 8 - Vila Isa">Loja 8 - Vila Isa</option>
+              <option value="Loja 9 - São Pedro">Loja 9 - São Pedro</option>
+            </select>
+          </div>
+
+          <div class="campo">
+            <label for="solicitante" class="obrigatorio"
+              >Solicitante (Atendente):</label
+            >
+            <input
+              type="text"
+              id="solicitante"
+              name="solicitante"
+              required
+              placeholder="Nome do atendente"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div class="container-duplo">
+        <!-- DADOS DO CLIENTE E PRODUTOS -->
+        <div class="secao">
+          <h3>Dados do Cliente</h3>
+          <div class="linha-campo">
+            <div class="campo">
+              <label for="nomecliente" class="obrigatorio">Nome:</label>
+              <input
+                type="text"
+                id="nomecliente"
+                name="nomecliente"
+                required
+                placeholder="Digite o nome do cliente"
+              />
+            </div>
+            <div class="campo">
+              <label for="cpfcliente" class="obrigatorio">CPF:</label>
+              <input
+                type="text"
+                id="cpfcliente"
+                name="cpfcliente"
+                required
+                placeholder="000.000.000-00"
+                oninput="mascaraCPF(this)"
+                onblur="verificarCampoCPF(this)"
+              />
+            </div>
+            <div class="campo">
+              <label for="telefonecliente" class="obrigatorio">Telefone:</label>
+              <input
+                type="text"
+                id="telefonecliente"
+                name="telefonecliente"
+                required
+                placeholder="(00) 00000-0000"
+                oninput="mascaraTelefone(this)"
+                onblur="verificarCampoTelefone(this)"
+              />
+            </div>
+          </div>
+
+          <div class="cabecalho-produtos">
+            <h3 class="obrigatorio" id="titulo-produtos-secao">
+              Produto(s) a Devolver
+            </h3>
+            <button
+              type="button"
+              class="btn-azul"
+              onclick="abrirModalProduto()"
+            >
+              + Adicionar Produto
+            </button>
+          </div>
+
+          <div id="lista-produtos-adicionados">
+            <p style="color: #777; font-size: 14px">
+              Nenhum produto adicionado ainda.
+            </p>
+          </div>
+        </div>
+
+        <!-- ENDEREÇO DE COLETA OU ENTREGA EM LOJA -->
+        <div class="secao">
+          <h3>Endereço de Coleta</h3>
+
+          <label class="checkbox-loja-box">
+            <input
+              type="checkbox"
+              id="entregueemloja"
+              name="entregueemloja"
+              onchange="alternarEntregueEmLoja()"
+            />
+            <span>Entregue em Loja (cliente trouxe o produto até a loja)</span>
+          </label>
+
+          <div class="linha-campo">
+            <div class="campo">
+              <label for="cepcliente" class="obrigatorio">CEP:</label>
+              <input
+                type="text"
+                id="cepcliente"
+                name="cepcliente"
+                required
+                placeholder="00000-000"
+                oninput="mascaraCEP(this)"
+                onblur="verificarCampoCEP(this)"
+              />
+            </div>
+            <div class="campo">
+              <label for="ruacliente" class="obrigatorio">Rua:</label>
+              <input
+                type="text"
+                id="ruacliente"
+                name="ruacliente"
+                required
+                placeholder="Digite o nome da rua"
+              />
+            </div>
+            <div class="campo">
+              <label for="numerocliente" class="obrigatorio">Número:</label>
+              <input
+                type="text"
+                id="numerocliente"
+                name="numerocliente"
+                required
+                placeholder="Digite o número"
+              />
+            </div>
+            <div class="campo">
+              <label for="bairrocliente" class="obrigatorio">Bairro:</label>
+              <input
+                type="text"
+                id="bairrocliente"
+                name="bairrocliente"
+                required
+                placeholder="Digite o nome do bairro"
+              />
+            </div>
+            <div class="campo">
+              <label for="cidadecliente" class="obrigatorio">Cidade:</label>
+              <input
+                type="text"
+                id="cidadecliente"
+                name="cidadecliente"
+                required
+                value="Governador Valadares"
+                placeholder="Digite o nome da cidade"
+              />
+            </div>
+            <div class="campo">
+              <label for="estadocliente" class="obrigatorio">Estado:</label>
+              <input
+                type="text"
+                id="estadocliente"
+                name="estadocliente"
+                required
+                value="MG"
+                maxlength="2"
+                placeholder="UF"
+              />
+            </div>
+            <div class="campo">
+              <label for="complementocliente">Complemento:</label>
+              <input
+                type="text"
+                id="complementocliente"
+                name="complementocliente"
+                placeholder="Digite o complemento (opcional)"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DADOS DA SOLICITAÇÃO -->
+      <div class="secao">
+        <h3>Dados da Solicitação</h3>
+        <div class="linha-campo">
+          <div class="campo">
+            <label for="numeropedido" class="obrigatorio"
+              >Número do Pedido:</label
+            >
+            <input
+              type="text"
+              id="numeropedido"
+              name="numeropedido"
+              required
+              placeholder="Ex: #123456"
+            />
+          </div>
+
+          <div class="campo">
+            <label for="motivodevolucao" class="obrigatorio"
+              >Motivo da Solicitação:</label
+            >
+            <select
+              id="motivodevolucao"
+              name="motivodevolucao"
+              required
+              onchange="verificarOutroMotivo()"
+            >
+              <option value="">-- Selecione um motivo --</option>
+              <option value="Produto avariado">Produto avariado</option>
+              <option value="Produto vencido">Produto vencido</option>
+              <option value="Produto errado / trocado">
+                Produto errado / trocado
+              </option>
+              <option value="Desistência do cliente">
+                Desistência do cliente
+              </option>
+              <option value="Outros">Outros</option>
+            </select>
+          </div>
+
+          <div class="campo" id="campo-outro-motivo" style="display: none">
+            <label for="outromotivo" class="obrigatorio"
+              >Especifique o motivo:</label
+            >
+            <input
+              type="text"
+              id="outromotivo"
+              name="outromotivo"
+              placeholder="Descreva o motivo"
+            />
+          </div>
+        </div>
+
+        <div class="campo">
+          <label for="observacao">Observação:</label>
+          <textarea
+            id="observacao"
+            name="observacao"
+            rows="3"
+            placeholder="Detalhes adicionais para a equipe de logística ou motorista (opcional)"
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="barra-acoes-final">
+        <button
+          type="button"
+          class="btn-limpar-tela"
+          onclick="reiniciarTela()"
+        >
+          Limpar Tela
+        </button>
+        <button
+          type="submit"
+          class="btn-salvar-principal"
+          id="btn-registrar-principal"
+        >
+          Registrar Devolução
+        </button>
+      </div>
+    </form>
+
+    <!-- MODAL ADICIONAR PRODUTO -->
+    <dialog id="modal-produto" class="modal-caixa">
+      <div class="modal-conteudo">
+        <h3>Adicionar Produto</h3>
+        <div class="linha-campo">
+          <div class="campo">
+            <label for="modal-sku" class="obrigatorio">SKU</label>
+            <input
+              type="text"
+              id="modal-sku"
+              placeholder="Cód. Interno"
+              oninput="aoDigitarCodigoModal('SKU', this)"
+              onblur="buscarProdutoAutomatico('SKU')"
+              onkeydown="if(event.key === 'Enter'){ event.preventDefault(); buscarProdutoAutomatico('SKU'); }"
+            />
+          </div>
+          <div class="campo">
+            <label for="modal-ean" class="obrigatorio">EAN</label>
+            <input
+              type="text"
+              id="modal-ean"
+              placeholder="Cód. Barras"
+              oninput="aoDigitarCodigoModal('EAN', this)"
+              onblur="buscarProdutoAutomatico('EAN')"
+              onkeydown="if(event.key === 'Enter'){ event.preventDefault(); buscarProdutoAutomatico('EAN'); }"
+            />
+          </div>
+          <div class="campo" style="grid-column: span 2">
+            <label for="modal-descricao" class="obrigatorio"
+              >Descrição do Produto</label
+            >
+            <input
+              type="text"
+              id="modal-descricao"
+              placeholder="Ex: Leite Integral 1L"
+            />
+          </div>
+        </div>
+        <div class="linha-campo">
+          <div class="campo">
+            <label for="modal-unidade" class="obrigatorio">Unidade</label>
+            <select id="modal-unidade" onchange="mudarUnidadeModal()">
+              <option value="Un">Un (Unidade)</option>
+              <option value="Kg">Kg (Quilograma)</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label for="modal-quantidade" class="obrigatorio">Quantidade</label>
+            <input
+              type="text"
+              id="modal-quantidade"
+              placeholder="0"
+              oninput="formatarQuantidadeModal()"
+            />
+          </div>
+        </div>
+        <div class="modal-botoes">
+          <button
+            type="button"
+            class="btn-limpar-modal"
+            onclick="limparCamposModal()"
+          >
+            Limpar Campos
+          </button>
+          <button
+            type="button"
+            class="btn-cancelar"
+            onclick="fecharModalProduto()"
+          >
+            Fechar
+          </button>
+          <button
+            type="button"
+            class="btn-azul"
+            onclick="salvarProdutoNaLista()"
+          >
+            + Incluir Produto
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+    <script src="../global/config.js"></script>
+    <script src="devolucao.js"></script>
+  </body>
+</html>

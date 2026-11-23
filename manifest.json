@@ -1,0 +1,19 @@
+{
+  "name": "Portal Bigmais em Casa",
+  "short_name": "Bigmais em Casa",
+  "description": "Central de Solicitações de Devolução, Troca e Estorno - Bigmais em Casa",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f6f9",
+  "theme_color": "#d32f2f",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "global/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

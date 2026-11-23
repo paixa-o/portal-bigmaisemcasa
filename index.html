@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#d32f2f" />
+    <title>Solicitações - Portal Bigmais em Casa</title>
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="global/icon.svg" />
+    <link rel="apple-touch-icon" href="global/icon.svg" />
+    <link rel="stylesheet" href="global/estilo.css" />
+  </head>
+
+  <body>
+    <header class="cabecalho-portal">
+      <div>
+        <h1>Portal Bigmais em Casa</h1>
+        <span>Central de Solicitações de Devolução (DEV), Troca (TRC) e Estorno (EST)</span>
+      </div>
+      <div class="acoes-cabecalho">
+        <a
+          href="https://www.bigmaisemcasa.com.br"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn-cabecalho-site"
+          title="Abrir site Bigmais em Casa"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+          <span>Site</span>
+        </a>
+        <a href="devolucao/index.html" class="btn-cabecalho-primario">
+          + Nova Devolução / Troca
+        </a>
+        <button
+          type="button"
+          class="btn-cabecalho-secundario"
+          onclick="alert('O módulo de Estorno (EST) será integrado em breve!')"
+        >
+          + Novo Estorno (EST)
+        </button>
+      </div>
+    </header>
+
+    <div class="grid-kpis">
+      <div class="card-kpi">
+        <span class="kpi-titulo">Total de Solicitações</span>
+        <strong class="kpi-valor" id="kpi-total">0</strong>
+      </div>
+      <div class="card-kpi kpi-andamento">
+        <span class="kpi-titulo">Em Andamento</span>
+        <strong class="kpi-valor" id="kpi-andamento">0</strong>
+      </div>
+      <div class="card-kpi kpi-concluida">
+        <span class="kpi-titulo">Concluídas</span>
+        <strong class="kpi-valor" id="kpi-concluida">0</strong>
+      </div>
+      <div class="card-kpi kpi-cancelada">
+        <span class="kpi-titulo">Canceladas</span>
+        <strong class="kpi-valor" id="kpi-cancelada">0</strong>
+      </div>
+    </div>
+
+    <div class="secao">
+      <div class="cabecalho-tabela">
+        <h3>Histórico de Solicitações</h3>
+      </div>
+
+      <div class="barra-filtros">
+        <div class="campo" style="grid-column: span 2">
+          <label for="filtro-busca">Buscar:</label>
+          <input
+            type="text"
+            id="filtro-busca"
+            placeholder="Protocolo (ex: 0001 ou 2611230001), Nº Pedido, Cliente ou CPF..."
+            oninput="renderizarTabela()"
+          />
+        </div>
+
+        <div class="campo">
+          <label for="filtro-loja">Loja:</label>
+          <select id="filtro-loja" onchange="renderizarTabela()">
+            <option value="TODOS">Todas as Lojas</option>
+            <option value="Loja 8 - Vila Isa">Loja 8 - Vila Isa</option>
+            <option value="Loja 9 - São Pedro">Loja 9 - São Pedro</option>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label for="filtro-tipo">Tipo:</label>
+          <select id="filtro-tipo" onchange="renderizarTabela()">
+            <option value="TODOS">Todos os Tipos</option>
+            <option value="DEV">Devolução (DEV)</option>
+            <option value="TRC">Troca (TRC)</option>
+            <option value="EST">Estorno (EST)</option>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label for="filtro-status">Status:</label>
+          <select id="filtro-status" onchange="renderizarTabela()">
+            <option value="TODOS">Todos os Status</option>
+            <option value="Em andamento">Em andamento</option>
+            <option value="Concluída">Concluída</option>
+            <option value="Cancelada">Cancelada</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="tabela-wrapper">
+        <table class="tabela-solicitacoes">
+          <thead>
+            <tr>
+              <th>Protocolo</th>
+              <th>Loja</th>
+              <th>Tipo</th>
+              <th>Data / Hora</th>
+              <th>Cliente</th>
+              <th>Pedido</th>
+              <th>Itens</th>
+              <th>Status</th>
+              <th style="text-align: right;">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="corpo-tabela-solicitacoes"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- MODAL DE DETALHES -->
+    <dialog id="modal-detalhes" class="modal-caixa" style="max-width: 650px">
+      <div class="modal-conteudo">
+        <h3 id="detalhe-titulo">Detalhes da Solicitação</h3>
+        <div id="detalhe-corpo" class="corpo-detalhes"></div>
+        <div class="modal-botoes" id="detalhe-botoes">
+          <button
+            type="button"
+            class="btn-cancelar"
+            onclick="document.getElementById('modal-detalhes').close()"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- MODAL DE EDIÇÃO DA SOLICITAÇÃO -->
+    <dialog id="modal-edicao" class="modal-caixa" style="max-width: 820px">
+      <div class="modal-conteudo">
+        <h3 id="edicao-titulo" style="color: #1976d2; margin-bottom: 5px">
+          Editar Solicitação
+        </h3>
+        <p style="font-size: 13px; color: #555; margin-bottom: 15px">
+          Altere os dados desejados abaixo e clique em <strong>Salvar Alterações</strong>.
+        </p>
+
+        <div class="linha-campo">
+          <div class="campo">
+            <label for="edit-tipo" class="obrigatorio">Modalidade:</label>
+            <select id="edit-tipo">
+              <option value="DEV">Devolução (DEV)</option>
+              <option value="TRC">Troca (TRC)</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label for="edit-loja" class="obrigatorio">Loja:</label>
+            <select id="edit-loja">
+              <option value="Loja 8 - Vila Isa">Loja 8 - Vila Isa</option>
+              <option value="Loja 9 - São Pedro">Loja 9 - São Pedro</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label for="edit-solicitante" class="obrigatorio">Atendente:</label>
+            <input type="text" id="edit-solicitante" />
+          </div>
+          <div class="campo">
+            <label for="edit-pedido" class="obrigatorio">Nº Pedido:</label>
+            <input type="text" id="edit-pedido" />
+          </div>
+        </div>
+
+        <hr style="margin: 10px 0 14px; border: none; border-top: 1px solid #eee;" />
+        <strong style="font-size: 13px; color: #d32f2f; display: block; margin-bottom: 8px;">Dados do Cliente</strong>
+        <div class="linha-campo">
+          <div class="campo" style="grid-column: span 2">
+            <label for="edit-nome" class="obrigatorio">Nome:</label>
+            <input type="text" id="edit-nome" />
+          </div>
+          <div class="campo">
+            <label for="edit-cpf" class="obrigatorio">CPF:</label>
+            <input type="text" id="edit-cpf" oninput="mascaraCPFPainel(this)" />
+          </div>
+          <div class="campo">
+            <label for="edit-telefone" class="obrigatorio">Telefone:</label>
+            <input type="text" id="edit-telefone" oninput="mascaraTelefonePainel(this)" />
+          </div>
+        </div>
+
+        <hr style="margin: 10px 0 14px; border: none; border-top: 1px solid #eee;" />
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
+          <strong style="font-size: 13px; color: #d32f2f;">Endereço de Coleta</strong>
+          <label class="checkbox-loja-box" style="margin-bottom: 0; padding: 6px 12px;">
+            <input type="checkbox" id="edit-entregue-loja" onchange="alternarEntregueEmLojaEdicao()" />
+            <span>Entregue em Loja (cliente trouxe o produto até a loja)</span>
+          </label>
+        </div>
+
+        <div class="linha-campo" id="edit-bloco-endereco">
+          <div class="campo">
+            <label for="edit-cep" class="obrigatorio">CEP:</label>
+            <input type="text" id="edit-cep" oninput="mascaraCEPPainel(this)" onblur="buscarCEPEdicao(this)" />
+          </div>
+          <div class="campo" style="grid-column: span 2">
+            <label for="edit-rua" class="obrigatorio">Rua:</label>
+            <input type="text" id="edit-rua" />
+          </div>
+          <div class="campo">
+            <label for="edit-numero" class="obrigatorio">Número:</label>
+            <input type="text" id="edit-numero" />
+          </div>
+          <div class="campo">
+            <label for="edit-bairro" class="obrigatorio">Bairro:</label>
+            <input type="text" id="edit-bairro" />
+          </div>
+          <div class="campo">
+            <label for="edit-cidade" class="obrigatorio">Cidade:</label>
+            <input type="text" id="edit-cidade" />
+          </div>
+          <div class="campo">
+            <label for="edit-estado" class="obrigatorio">UF:</label>
+            <input type="text" id="edit-estado" maxlength="2" />
+          </div>
+          <div class="campo">
+            <label for="edit-complemento">Complemento:</label>
+            <input type="text" id="edit-complemento" />
+          </div>
+        </div>
+
+        <hr style="margin: 10px 0 14px; border: none; border-top: 1px solid #eee;" />
+        <strong style="font-size: 13px; color: #d32f2f; display: block; margin-bottom: 8px;">Motivo e Observação</strong>
+        <div class="linha-campo">
+          <div class="campo">
+            <label for="edit-motivo" class="obrigatorio">Motivo:</label>
+            <input type="text" id="edit-motivo" />
+          </div>
+          <div class="campo" style="grid-column: span 2">
+            <label for="edit-observacao">Observação:</label>
+            <input type="text" id="edit-observacao" />
+          </div>
+        </div>
+
+        <hr style="margin: 10px 0 14px; border: none; border-top: 1px solid #eee;" />
+        <strong style="font-size: 13px; color: #d32f2f; display: block; margin-bottom: 8px;">Produtos da Solicitação</strong>
+        <div id="lista-itens-edicao" style="margin-bottom: 12px"></div>
+
+        <div style="background: #f8fafc; border: 1px solid #dce1e7; padding: 12px; border-radius: 6px;">
+          <strong style="font-size: 13px; display: block; margin-bottom: 8px">+ Incluir Produto</strong>
+          <div class="linha-campo" style="gap: 10px">
+            <div class="campo">
+              <input
+                type="text"
+                id="edit-prod-sku"
+                placeholder="SKU *"
+                style="margin-bottom: 5px"
+                oninput="aoDigitarCodigoEdicao('SKU', this)"
+                onblur="buscarProdutoEdicao('SKU')"
+                onkeydown="if(event.key === 'Enter'){ event.preventDefault(); buscarProdutoEdicao('SKU'); }"
+              />
+            </div>
+            <div class="campo">
+              <input
+                type="text"
+                id="edit-prod-ean"
+                placeholder="EAN"
+                style="margin-bottom: 5px"
+                oninput="aoDigitarCodigoEdicao('EAN', this)"
+                onblur="buscarProdutoEdicao('EAN')"
+                onkeydown="if(event.key === 'Enter'){ event.preventDefault(); buscarProdutoEdicao('EAN'); }"
+              />
+            </div>
+            <div class="campo" style="grid-column: span 2">
+              <input
+                type="text"
+                id="edit-prod-descricao"
+                placeholder="Descrição do produto *"
+                style="margin-bottom: 5px"
+              />
+            </div>
+            <div class="campo">
+              <select
+                id="edit-prod-unidade"
+                style="margin-bottom: 5px"
+                onchange="mudarUnidadeEdicao()"
+              >
+                <option value="Un">Un</option>
+                <option value="Kg">Kg</option>
+              </select>
+            </div>
+            <div class="campo">
+              <input
+                type="text"
+                id="edit-prod-quantidade"
+                placeholder="Qtd *"
+                style="margin-bottom: 5px"
+                oninput="formatarQuantidadeEdicao()"
+              />
+            </div>
+          </div>
+          <button
+            type="button"
+            class="btn-azul"
+            style="margin-top: 5px; font-size: 13px"
+            onclick="adicionarItemEdicao()"
+          >
+            + Adicionar Produto
+          </button>
+        </div>
+
+        <div class="modal-botoes">
+          <button
+            type="button"
+            class="btn-cancelar"
+            onclick="document.getElementById('modal-edicao').close()"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="btn-salvar-principal"
+            id="btn-salvar-edicao"
+            style="padding: 9px 18px; font-size: 14px"
+            onclick="salvarEdicaoSolicitacao()"
+          >
+            Salvar Alterações
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- MODAL DE CONFERÊNCIA DE ITENS RECEBIDOS -->
+    <dialog id="modal-conferencia" class="modal-caixa" style="max-width: 720px">
+      <div class="modal-conteudo">
+        <h3 id="conferencia-titulo" style="color: #d32f2f; margin-bottom: 5px">
+          Conferência de Itens Recolhidos
+        </h3>
+        <p style="font-size: 13px; color: #555; margin-bottom: 15px">
+          Confirme as quantidades efetivamente recebidas, remova itens não
+          recolhidos ou inclua novos itens antes de concluir.
+        </p>
+
+        <div id="lista-itens-conferencia" style="margin-bottom: 18px"></div>
+
+        <div
+          style="
+            background: #f8fafc;
+            border: 1px solid #dce1e7;
+            padding: 12px;
+            border-radius: 6px;
+          "
+        >
+          <strong style="font-size: 13px; display: block; margin-bottom: 8px"
+            >+ Incluir Item Adicional Recolhido</strong
+          >
+          <div class="linha-campo" style="gap: 10px">
+            <div class="campo">
+              <input
+                type="text"
+                id="conf-sku"
+                placeholder="SKU *"
+                style="margin-bottom: 5px"
+                oninput="aoDigitarCodigoConferencia('SKU', this)"
+                onblur="buscarProdutoConferencia('SKU')"
+                onkeydown="if(event.key === 'Enter'){ event.preventDefault(); buscarProdutoConferencia('SKU'); }"
+              />
+            </div>
+            <div class="campo">
+              <input
+                type="text"
+                id="conf-ean"
+                placeholder="EAN"
+                style="margin-bottom: 5px"
+                oninput="aoDigitarCodigoConferencia('EAN', this)"
+                onblur="buscarProdutoConferencia('EAN')"
+                onkeydown="if(event.key === 'Enter'){ event.preventDefault(); buscarProdutoConferencia('EAN'); }"
+              />
+            </div>
+            <div class="campo" style="grid-column: span 2">
+              <input
+                type="text"
+                id="conf-descricao"
+                placeholder="Descrição do produto *"
+                style="margin-bottom: 5px"
+              />
+            </div>
+            <div class="campo">
+              <select
+                id="conf-unidade"
+                style="margin-bottom: 5px"
+                onchange="mudarUnidadeConferencia()"
+              >
+                <option value="Un">Un</option>
+                <option value="Kg">Kg</option>
+              </select>
+            </div>
+            <div class="campo">
+              <input
+                type="text"
+                id="conf-quantidade"
+                placeholder="Qtd *"
+                style="margin-bottom: 5px"
+                oninput="formatarQuantidadeConferencia()"
+              />
+            </div>
+          </div>
+          <button
+            type="button"
+            class="btn-azul"
+            style="margin-top: 5px; font-size: 13px"
+            onclick="adicionarItemConferencia()"
+          >
+            + Adicionar à Conferência
+          </button>
+        </div>
+
+        <div class="modal-botoes">
+          <button
+            type="button"
+            class="btn-cancelar"
+            onclick="document.getElementById('modal-conferencia').close()"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="btn-salvar-principal"
+            id="btn-confirmar-conclusao"
+            style="padding: 9px 18px; font-size: 14px"
+            onclick="confirmarConclusaoConferencia()"
+          >
+            Confirmar Recebimento e Concluir
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- MODAL DE CANCELAMENTO -->
+    <dialog id="modal-cancelamento" class="modal-caixa" style="max-width: 480px">
+      <div class="modal-conteudo">
+        <h3 id="cancelamento-titulo" style="color: #b91c1c; margin-bottom: 5px">
+          Cancelar Solicitação
+        </h3>
+        <p style="font-size: 13px; color: #555; margin-bottom: 15px">
+          Preencha os dados abaixo para registrar o cancelamento desta
+          solicitação.
+        </p>
+
+        <div class="campo">
+          <label for="canc-responsavel" class="obrigatorio"
+            >Nome de quem está cancelando:</label
+          >
+          <input
+            type="text"
+            id="canc-responsavel"
+            placeholder="Digite seu nome..."
+          />
+        </div>
+
+        <div class="campo">
+          <label for="canc-motivo-select" class="obrigatorio"
+            >Motivo do Cancelamento:</label
+          >
+          <select
+            id="canc-motivo-select"
+            onchange="verificarOutroMotivoCancelamento()"
+          >
+            <option value="">Selecione um motivo...</option>
+            <option value="Solicitação do Cliente">Solicitação do Cliente</option>
+            <option value="Solicitação Duplicada">Solicitação Duplicada</option>
+            <option value="Cliente não Atende/Ausente">
+              Cliente não Atende/Ausente
+            </option>
+            <option value="OUTRO">Outro</option>
+          </select>
+        </div>
+
+        <div class="campo" id="grupo-canc-outro" style="display: none">
+          <label for="canc-motivo-outro" class="obrigatorio"
+            >Descreva o motivo:</label
+          >
+          <input
+            type="text"
+            id="canc-motivo-outro"
+            placeholder="Digite o motivo do cancelamento..."
+          />
+        </div>
+
+        <div class="modal-botoes">
+          <button
+            type="button"
+            class="btn-cancelar"
+            onclick="document.getElementById('modal-cancelamento').close()"
+          >
+            Voltar
+          </button>
+          <button
+            type="button"
+            id="btn-confirmar-cancelamento"
+            class="btn-remover"
+            style="
+              background-color: #dc2626;
+              color: #fff;
+              border: none;
+              padding: 9px 18px;
+              font-size: 14px;
+            "
+            onclick="confirmarCancelamentoModal()"
+          >
+            Confirmar Cancelamento
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- ÁREA OCULTA PARA IMPRESSÃO DO CANHOTO EM 2 VIAS (A4 RETRATO) -->
+    <div id="area-impressao-canhoto"></div>
+
+    <script src="global/config.js"></script>
+    <script src="global/painel.js"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("./sw.js").catch(() => {});
+      }
+    </script>
+  </body>
+</html>
