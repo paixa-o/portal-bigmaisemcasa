@@ -1,4 +1,4 @@
-const CACHE_NAME = "bigmais-em-casa-v2";
+const CACHE_NAME = "bigmais-em-casa-v3";
 const ASSETS = [
   "./",
   "./index.html",
@@ -7,6 +7,7 @@ const ASSETS = [
   "./global/painel.js",
   "./global/config.js",
   "./global/icon.svg",
+  "./global/logo-bigmais.png",
   "./devolucao/index.html",
   "./devolucao/devolucao.js"
 ];
