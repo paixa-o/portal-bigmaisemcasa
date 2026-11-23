@@ -1,4 +1,4 @@
-const CACHE_NAME = "bigmais-em-casa-v3";
+const CACHE_NAME = "bigmais-em-casa-v4";
 const ASSETS = [
   "./",
   "./index.html",
@@ -39,11 +39,19 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Ignora requisições que não sejam GET
+  if (event.request.method !== "GET") {
+    return;
+  }
+
+  // Busca sempre a versão mais nova na rede (sem cache HTTP) e atualiza o cache offline
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: "no-store" })
       .then((response) => {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        if (response && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
         return response;
       })
       .catch(() => caches.match(event.request))

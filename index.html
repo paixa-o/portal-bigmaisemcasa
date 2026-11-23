@@ -551,5 +551,21 @@
         navigator.serviceWorker.register("./sw.js").catch(() => {});
       }
     </script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        let atualizando = false;
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          if (!atualizando) {
+            atualizando = true;
+            window.location.reload();
+          }
+        });
+
+        navigator.serviceWorker
+          .register("./sw.js")
+          .then((reg) => reg.update())
+          .catch(() => {});
+      }
+    </script>
   </body>
 </html>
