@@ -498,6 +498,11 @@ function reiniciarTela() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  const elVersao = document.getElementById("versao-sistema");
+  if (elVersao && typeof VERSAO_PORTAL !== "undefined") {
+    elVersao.textContent = `Versão ${VERSAO_PORTAL}`;
+  }
+
   inicializarDadosAutomaticos();
 
   const form = document.getElementById("formDevolucao");
@@ -505,11 +510,6 @@ document.addEventListener("DOMContentLoaded", () => {
   form.addEventListener("input", () => {
     formularioAlterado = true;
   });
-
-  const elVersao = document.getElementById("versao-sistema");
-if (elVersao && typeof VERSAO_PORTAL !== "undefined") {
-  elVersao.textContent = `Versão ${VERSAO_PORTAL}`;
-}
 
   form.addEventListener("submit", async function (evento) {
     evento.preventDefault();

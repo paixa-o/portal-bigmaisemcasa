@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#d32f2f" />
+    <title>Novo Estorno (EST) - Portal Bigmais em Casa</title>
+    <link rel="manifest" href="../manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="../global/icon.svg" />
+    <link rel="stylesheet" href="../global/estilo.css" />
+  </head>
+
+  <body>
+    <header class="cabecalho-portal">
+      <div class="marca-portal">
+        <div class="logo-wrapper">
+          <img
+            src="../global/logo-bigmais.png"
+            alt="Logo Bigmais em Casa"
+            class="logo-portal"
+          />
+        </div>
+        <div>
+          <h1>Portal Bigmais em Casa</h1>
+          <span>Módulo de Solicitação de Estorno (EST)</span>
+        </div>
+      </div>
+      <div class="acoes-cabecalho">
+        <a href="../index.html" class="btn-cabecalho-secundario">
+          ← Voltar às Solicitações
+        </a>
+      </div>
+    </header>
+
+    <form id="formEstorno">
+      <!-- CONTROLE DA SOLICITAÇÃO -->
+      <div class="secao" style="margin-bottom: 20px">
+        <h3>Controle da Solicitação</h3>
+        <div class="linha-campo">
+          <div class="campo">
+            <label for="idsolicitacao">ID da Solicitação:</label>
+            <input
+              type="text"
+              id="idsolicitacao"
+              name="idsolicitacao"
+              readonly
+              class="campo-automatico"
+            />
+          </div>
+
+          <div class="campo">
+            <label for="protocolo">Protocolo (Uso Interno):</label>
+            <input
+              type="text"
+              id="protocolo"
+              name="protocolo"
+              readonly
+              class="campo-automatico"
+            />
+          </div>
+
+          <div class="campo">
+            <label for="datasolicitacao">Data de Solicitação:</label>
+            <input
+              type="text"
+              id="datasolicitacao"
+              name="datasolicitacao"
+              readonly
+              class="campo-automatico"
+            />
+          </div>
+
+          <div class="campo">
+            <label for="loja" class="obrigatorio">Loja:</label>
+            <select id="loja" name="loja" required>
+              <option value="">-- Selecione a loja --</option>
+              <option value="Loja 8 - Vila Isa">Loja 8 - Vila Isa</option>
+              <option value="Loja 9 - São Pedro">Loja 9 - São Pedro</option>
+            </select>
+          </div>
+
+          <div class="campo">
+            <label for="solicitante" class="obrigatorio"
+              >Solicitante (Atendente):</label
+            >
+            <input
+              type="text"
+              id="solicitante"
+              name="solicitante"
+              required
+              placeholder="Nome do solicitante"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- VÍNCULO OBRIGATÓRIO COM DEVOLUÇÃO CONCLUÍDA -->
+      <div class="secao" style="margin-bottom: 20px">
+        <h3 class="obrigatorio">Devolução Concluída de Origem (DEV)</h3>
+        <p style="font-size: 13px; color: #555; margin-bottom: 12px">
+          Somente solicitações de <strong>Devolução (DEV) com status Concluída</strong> e ainda sem estorno podem ser vinculadas. Ao trocar a devolução, todos os campos abaixo são limpos e recarregados automaticamente.
+        </p>
+
+        <div class="linha-campo" style="align-items: end">
+          <div class="campo" style="grid-column: span 2; position: relative">
+            <label for="busca-devolucao" class="obrigatorio"
+              >Selecionar Devolução Concluída (DEV):</label
+            >
+            <input
+              type="text"
+              id="busca-devolucao"
+              autocomplete="off"
+              placeholder="Clique ou digite protocolo DEV, nome do cliente, CPF ou pedido..."
+              oninput="filtrarDevolucoesVinculo()"
+              onfocus="filtrarDevolucoesVinculo()"
+            />
+            <div
+              id="resultados-busca-dev"
+              class="lista-autocomplete-dev"
+              style="display: none"
+            ></div>
+          </div>
+        </div>
+
+        <input
+          type="hidden"
+          id="protocolodevolucao"
+          name="protocolodevolucao"
+          required
+        />
+
+        <div
+          id="banner-dev-vinculada"
+          class="banner-vinculo-dev"
+          style="display: none"
+        >
+          <span id="texto-dev-vinculada"></span>
+          <button
+            type="button"
+            class="btn-remover"
+            onclick="desvincularDevolucao(true)"
+          >
+            Trocar / Limpar DEV
+          </button>
+        </div>
+      </div>
+
+      <div class="container-duplo">
+        <!-- DADOS DO CLIENTE E IDENTIFICAÇÃO -->
+        <div class="secao">
+          <h3>Dados do Cliente</h3>
+          <div class="linha-campo">
+            <div class="campo" style="grid-column: span 2">
+              <label for="nomecliente" class="obrigatorio">Nome do Cliente:</label>
+              <input
+                type="text"
+                id="nomecliente"
+                name="nomecliente"
+                required
+                placeholder="Digite o nome completo do cliente"
+              />
+            </div>
+
+            <div class="campo">
+              <label for="cpfcliente" class="obrigatorio">CPF do Cliente:</label>
+              <input
+                type="text"
+                id="cpfcliente"
+                name="cpfcliente"
+                required
+                placeholder="000.000.000-00"
+                oninput="mascaraCPF(this)"
+                onblur="verificarCampoCPF(this)"
+              />
+            </div>
+
+            <div class="campo">
+              <label for="sequenciacliente" class="obrigatorio"
+                >Sequência Cliente (SEQ):</label
+              >
+              <input
+                type="text"
+                id="sequenciacliente"
+                name="sequenciacliente"
+                required
+                placeholder="Ex: 12345"
+                oninput="this.value = this.value.replace(/\D/g, '')"
+              />
+            </div>
+
+            <div class="campo">
+              <label for="telefonecliente" class="obrigatorio"
+                >Telefone (WhatsApp):</label
+              >
+              <input
+                type="text"
+                id="telefonecliente"
+                name="telefonecliente"
+                required
+                placeholder="(00) 00000-0000"
+                oninput="mascaraTelefone(this)"
+                onblur="verificarCampoTelefone(this)"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- DADOS DO PEDIDO, NOTAS FISCAIS E VALORES -->
+        <div class="secao">
+          <h3>Dados Fiscais e Valores</h3>
+          <div class="linha-campo">
+            <div class="campo">
+              <label for="numeropedido" class="obrigatorio"
+                >Número do Pedido:</label
+              >
+              <input
+                type="text"
+                id="numeropedido"
+                name="numeropedido"
+                required
+                placeholder="Ex: #123456"
+              />
+            </div>
+
+            <div class="campo">
+              <label for="nfpedido" class="obrigatorio"
+                >Nota Fiscal do Pedido (Nº):</label
+              >
+              <input
+                type="text"
+                id="nfpedido"
+                name="nfpedido"
+                required
+                placeholder="Nº da NF de venda"
+                oninput="this.value = this.value.replace(/\D/g, '')"
+              />
+            </div>
+
+            <div class="campo">
+              <label for="nfdevolucao" class="obrigatorio"
+                >Nota Fiscal da Devolução:</label
+              >
+              <input
+                type="text"
+                id="nfdevolucao"
+                name="nfdevolucao"
+                required
+                placeholder="Nº da NF de devolução"
+                oninput="this.value = this.value.replace(/\D/g, '')"
+              />
+            </div>
+          </div>
+
+          <div class="linha-campo">
+            <div class="campo">
+              <label for="valorpedido" class="obrigatorio"
+                >Valor do Pedido (R$):</label
+              >
+              <input
+                type="text"
+                id="valorpedido"
+                name="valorpedido"
+                required
+                placeholder="R$ 0,00"
+                oninput="mascaraMoeda(this)"
+              />
+            </div>
+
+            <div class="campo">
+              <label for="valordevolvido" class="obrigatorio"
+                >Valor Devolvido / Estorno (R$):</label
+              >
+              <input
+                type="text"
+                id="valordevolvido"
+                name="valordevolvido"
+                required
+                placeholder="R$ 0,00"
+                oninput="mascaraMoeda(this)"
+              />
+              <button
+                type="button"
+                onclick="copiarValorPedidoParaDevolvido()"
+                style="
+                  margin-top: -10px;
+                  margin-bottom: 10px;
+                  background: none;
+                  border: none;
+                  color: #1976d2;
+                  font-size: 12px;
+                  font-weight: 600;
+                  cursor: pointer;
+                  text-align: left;
+                  padding: 0;
+                "
+              >
+                ↳ Estorno total (copiar Valor do Pedido)
+              </button>
+            </div>
+
+            <div class="campo">
+              <label for="formapagamento" class="obrigatorio"
+                >Forma de Pagamento:</label
+              >
+              <select id="formapagamento" name="formapagamento" required>
+                <option value="">-- Selecione --</option>
+                <option value="Crédito">Crédito</option>
+                <option value="PIX">PIX</option>
+                <option value="PicPay">PicPay</option>
+                <option value="POS (Alimentação/Refeição)">
+                  POS (Alimentação/Refeição)
+                </option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MOTIVO E OBSERVAÇÕES -->
+      <div class="secao">
+        <h3>Motivo da Solicitação</h3>
+        <div class="linha-campo">
+          <div class="campo">
+            <label for="motivoestorno" class="obrigatorio"
+              >Motivo da Solicitação:</label
+            >
+            <select
+              id="motivoestorno"
+              name="motivoestorno"
+              required
+              onchange="verificarOutroMotivoEstorno()"
+            >
+              <option value="">-- Selecione um motivo --</option>
+              <option value="Devolução de produto(s)">
+                Devolução de produto(s)
+              </option>
+              <option value="Devolução da compra inteira">
+                Devolução da compra inteira
+              </option>
+              <option value="Produto avariado">Produto avariado</option>
+              <option value="Produto vencido">Produto vencido</option>
+              <option value="Produto errado / trocado">
+                Produto errado / trocado
+              </option>
+              <option value="Desistência do cliente">
+                Desistência do cliente
+              </option>
+              <option value="Outros">Outros</option>
+            </select>
+          </div>
+
+          <div class="campo" id="campo-outro-motivo" style="display: none">
+            <label for="outromotivo" class="obrigatorio"
+              >Especifique o motivo:</label
+            >
+            <input
+              type="text"
+              id="outromotivo"
+              name="outromotivo"
+              placeholder="Descreva o motivo"
+            />
+          </div>
+        </div>
+
+        <div class="campo">
+          <label for="observacao">Motivo Detalhado / Observação:</label>
+          <textarea
+            id="observacao"
+            name="observacao"
+            rows="3"
+            placeholder="Detalhes adicionais ou itens devolvidos para conferência do setor financeiro (opcional)"
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="barra-acoes-final">
+        <button
+          type="button"
+          class="btn-limpar-tela"
+          onclick="reiniciarTelaEstorno()"
+        >
+          Limpar Tela
+        </button>
+        <button
+          type="submit"
+          class="btn-salvar-principal"
+          id="btn-registrar-estorno"
+        >
+          Registrar Estorno
+        </button>
+      </div>
+    </form>
+
+    <!-- MODAL PÓS-SALVAMENTO: E-MAIL FINANCEIRO + WHATSAPP -->
+    <dialog id="modal-pos-estorno" class="modal-caixa" style="max-width: 700px">
+      <div class="modal-conteudo">
+        <h3 style="color: #16a34a; margin-bottom: 6px">
+          ✓ Estorno Registrado com Sucesso!
+        </h3>
+        <p style="font-size: 13.5px; color: #555; margin-bottom: 14px">
+          Copie o e-mail padronizado abaixo com todos os dados fiscais para encaminhar ao setor financeiro e notifique o cliente via WhatsApp.
+        </p>
+
+        <div class="campo">
+          <label for="email-assunto-gerado">Assunto do E-mail:</label>
+          <input
+            type="text"
+            id="email-assunto-gerado"
+            readonly
+            class="campo-automatico"
+            style="margin-bottom: 10px"
+          />
+        </div>
+
+        <div class="campo">
+          <label for="email-corpo-gerado"
+            >Corpo do E-mail para o Financeiro:</label
+          >
+          <textarea
+            id="email-corpo-gerado"
+            rows="16"
+            readonly
+            style="
+              background-color: #f8fafc;
+              font-family: monospace;
+              font-size: 12.5px;
+              line-height: 1.45;
+            "
+          ></textarea>
+        </div>
+
+        <div class="modal-botoes" style="justify-content: space-between">
+          <button
+            type="button"
+            class="btn-azul"
+            id="btn-copiar-email-fin"
+            onclick="copiarEmailFinanceiro()"
+          >
+            Copiar Assunto e E-mail
+          </button>
+
+          <div style="display: flex; gap: 10px; flex-wrap: wrap">
+            <button
+              type="button"
+              class="btn-salvar-principal"
+              style="padding: 9px 16px; font-size: 14px"
+              onclick="enviarWhatsAppEstornoPosSalvar()"
+            >
+              Notificar no WhatsApp
+            </button>
+            <button
+              type="button"
+              class="btn-cancelar"
+              onclick="fecharModalPosEstorno()"
+            >
+              Concluir e Voltar
+            </button>
+          </div>
+        </div>
+      </div>
+    </dialog>
+
+    <footer class="rodape-portal">
+      <span>Portal Bigmais em Casa</span>
+      <span id="versao-sistema"></span>
+    </footer>
+
+    <script src="../global/config.js"></script>
+    <script src="estorno.js"></script>
+  </body>
+</html>

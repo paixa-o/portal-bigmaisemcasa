@@ -1,59 +1,56 @@
-const CACHE_NAME = "bigmais-em-casa-v1.4.1";
+const CACHE_NAME = "bigmais-em-casa-v2.2.0";
+
 const ASSETS = [
   "./",
   "./index.html",
   "./manifest.json",
+  "./global/config.js",
   "./global/estilo.css",
   "./global/painel.js",
-  "./global/config.js",
   "./global/icon.svg",
   "./global/logo-bigmais.png",
   "./devolucao/index.html",
-  "./devolucao/devolucao.js"
+  "./devolucao/devolucao.js",
+  "./estorno/index.html",
+  "./estorno/estorno.js"
 ];
 
-
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).catch(() => {})
-  );
   self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(ASSETS);
+    })
+  );
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+        keys
+          .filter((key) => key !== CACHE_NAME)
+          .map((key) => caches.delete(key))
       )
-    )
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {
-  // Nunca faz cache das requisições da API do Google Apps Script ou ViaCEP
-  if (
-    event.request.url.includes("script.google.com") ||
-    event.request.url.includes("viacep.com.br")
-  ) {
+  if (event.request.url.includes("script.google.com") || event.request.url.includes("viacep.com.br")) {
     return;
   }
 
-  // Ignora requisições que não sejam GET
-  if (event.request.method !== "GET") {
-    return;
-  }
-
-  // Busca sempre a versão mais nova na rede (sem cache HTTP) e atualiza o cache offline
   event.respondWith(
-    fetch(event.request, { cache: "no-store" })
-      .then((response) => {
-        if (response && response.status === 200) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+    fetch(event.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && event.request.method === "GET") {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
         }
-        return response;
+        return networkResponse;
       })
       .catch(() => caches.match(event.request))
   );

@@ -5,14 +5,63 @@ let compraInteiraEmConferencia = false;
 let protocoloEmCancelamento = null;
 let ultimoCodigoConferencia = "";
 
-// Variáveis para Edição de Solicitação
+// Variáveis para Edição de DEV/TRC
 let protocoloEmEdicao = null;
 let itensEmEdicao = [];
 let ultimoCodigoEdicao = "";
 
-const elVersao = document.getElementById("versao-sistema");
-if (elVersao && typeof VERSAO_PORTAL !== "undefined") {
-  elVersao.textContent = `Versão ${VERSAO_PORTAL}`;
+// Variáveis para Edição de EST
+let protocoloEstornoEmEdicao = null;
+let devAnteriorEdicaoEstorno = "";
+
+// Prioridade de exibição dos status na tabela
+const PRIORIDADE_STATUS_TABELA = {
+  "Em andamento": 1,
+  "Aguardando Financeiro": 2,
+  "Concluída": 3,
+  "Cancelada": 4,
+};
+
+function parseDataSolicitacao(dataStr) {
+  if (!dataStr) return 0;
+  const partes = String(dataStr).trim().split("/");
+  if (partes.length !== 3) return 0;
+  const [dia, mes, ano] = partes;
+  return (
+    new Date(`${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`).getTime() ||
+    0
+  );
+}
+
+function extrairNumeroSequencial(sol) {
+  const origem = sol.id || sol.protocolo || "";
+  const trechoFinal = String(origem).split("-").pop();
+  return parseInt(String(trechoFinal || "").replace(/\D/g, ""), 10) || 0;
+}
+
+function ordenarSolicitacoesTabela(lista) {
+  return [...lista].sort((a, b) => {
+    const pesoA = PRIORIDADE_STATUS_TABELA[a.status] ?? 99;
+    const pesoB = PRIORIDADE_STATUS_TABELA[b.status] ?? 99;
+    if (pesoA !== pesoB) return pesoA - pesoB;
+
+    const diffData =
+      parseDataSolicitacao(b.dataSolicitacao) -
+      parseDataSolicitacao(a.dataSolicitacao);
+    if (diffData !== 0) return diffData;
+
+    return extrairNumeroSequencial(b) - extrairNumeroSequencial(a);
+  });
+}
+
+// Preenche selo e rodapé com a versão atual do config.js
+const badgeVersao = document.getElementById("badge-versao-portal");
+if (badgeVersao && typeof VERSAO_PORTAL !== "undefined") {
+  badgeVersao.textContent = VERSAO_PORTAL;
+}
+const elVersaoRodape = document.getElementById("versao-sistema");
+if (elVersaoRodape && typeof VERSAO_PORTAL !== "undefined") {
+  elVersaoRodape.textContent = `Versão ${VERSAO_PORTAL}`;
 }
 
 // Fecha qualquer menu de três pontinhos aberto ao clicar fora, rolar ou redimensionar
@@ -42,7 +91,6 @@ function alternarMenuDropdown(event, protocolo) {
   if (menuAlvo && !estavaAberto) {
     menuAlvo.classList.add("aberto");
 
-    // Calcula posição fixa na viewport para não criar barra de rolagem nem ser cortado
     const rectBotao = botao.getBoundingClientRect();
     const rectMenu = menuAlvo.getBoundingClientRect();
 
@@ -59,9 +107,25 @@ function alternarMenuDropdown(event, protocolo) {
   }
 }
 
+/**
+- Retorna o Estorno ativo (não cancelado) vinculado a uma DEV.
+- Se o EST estiver Cancelado, retorna undefined (liberando a DEV).
+ */
+function obterEstornoVinculado(protocoloDev, ignorarProtocoloEst = "") {
+  return cacheSolicitacoes.find(
+    (s) =>
+      s.tipo === "EST" &&
+      s.protocolo !== ignorarProtocoloEst &&
+      s.protocoloDevolucao === protocoloDev &&
+      s.status !== "Cancelada"
+  );
+}
+
 function atualizarKPIs(lista) {
   const total = lista.length;
-  const emAndamento = lista.filter((s) => s.status === "Em andamento").length;
+  const emAndamento = lista.filter(
+    (s) => s.status === "Em andamento" || s.status === "Aguardando Financeiro"
+  ).length;
   const concluidas = lista.filter((s) => s.status === "Concluída").length;
   const canceladas = lista.filter((s) => s.status === "Cancelada").length;
 
@@ -89,6 +153,7 @@ async function carregarSolicitacoesDaPlanilha() {
       cacheSolicitacoes = dados.solicitacoes;
       localStorage.setItem("contador_devolucao", dados.contadores.DEV || 0);
       localStorage.setItem("contador_troca", dados.contadores.TRC || 0);
+      localStorage.setItem("contador_estorno", dados.contadores.EST || 0);
       renderizarTabela();
     } else {
       throw new Error(dados.erro || "Erro desconhecido");
@@ -110,7 +175,6 @@ function renderizarTabela() {
     .getElementById("filtro-busca")
     .value.trim()
     .toLowerCase();
-  // Remove hífens e espaços para busca flexível no protocolo (ex: 0001 ou 2611230001)
   const termoSemHifen = termoBusca.replace(/[-\s]/g, "");
   const termoLimpoNumeros = termoBusca.replace(/\D/g, "");
 
@@ -167,118 +231,601 @@ function renderizarTabela() {
 
   tbody.innerHTML = "";
 
-  filtradas
-    .slice()
-    .reverse()
-    .forEach((sol) => {
-      const classeBadgeStatus =
-        sol.status === "Concluída"
-          ? "badge-concluida"
-          : sol.status === "Cancelada"
-            ? "badge-cancelada"
+  ordenarSolicitacoesTabela(filtradas).forEach((sol) => {
+    const isEstorno = sol.tipo === "EST";
+    const isDevolucao = sol.tipo === "DEV";
+    const isEmAberto =
+      sol.status === "Em andamento" || sol.status === "Aguardando Financeiro";
+
+    const estornoVinculado = isDevolucao
+      ? obterEstornoVinculado(sol.protocolo)
+      : null;
+
+    // Bloqueio total da DEV enquanto estiver conectada a um EST não cancelado
+    const devBloqueadaPorEstorno = Boolean(estornoVinculado);
+
+    const classeBadgeStatus =
+      sol.status === "Concluída"
+        ? "badge-concluida"
+        : sol.status === "Cancelada"
+          ? "badge-cancelada"
+          : sol.status === "Aguardando Financeiro"
+            ? "badge-aguardando-fin"
             : "badge-andamento";
 
-      const classeBadgeTipo =
-        sol.tipo === "DEV"
-          ? "badge-tipo-dev"
-          : sol.tipo === "TRC"
-            ? "badge-tipo-trc"
-            : "badge-tipo-est";
+    const classeBadgeTipo =
+      sol.tipo === "DEV"
+        ? "badge-tipo-dev"
+        : sol.tipo === "TRC"
+          ? "badge-tipo-trc"
+          : "badge-tipo-est";
 
-      const qtdItens = sol.produtos ? sol.produtos.length : 0;
-      const textoColunaItens =
-        sol.compraInteira && qtdItens === 0
-          ? `<span class="badge-compra-inteira">Compra Inteira</span>`
-          : `${qtdItens} ${qtdItens === 1 ? "item" : "itens"}`;
+    const qtdItens = sol.produtos ? sol.produtos.length : 0;
+    const textoColunaItens = isEstorno
+      ? `<strong style="color: #0369a1;">${sol.valorDevolvido || sol.valorEstorno || "-"}</strong>`
+      : sol.compraInteira && qtdItens === 0
+        ? `<span class="badge-compra-inteira">Compra Inteira</span>`
+        : `${qtdItens} ${qtdItens === 1 ? "item" : "itens"}`;
 
-      const isConcluida = sol.status === "Concluída";
-      const textoWppMenu = isConcluida
-        ? "WhatsApp Conclusão"
-        : sol.whatsappEnviado
-          ? "WhatsApp (Enviado ✓)"
-          : "Enviar WhatsApp";
-      const classeWppMenu = isConcluida
-        ? "item-wpp"
-        : sol.whatsappEnviado
-          ? "item-wpp-enviado"
-          : "item-wpp";
+    const isConcluida = sol.status === "Concluída";
+    const textoWppMenu = isConcluida
+      ? "WhatsApp Conclusão"
+      : sol.whatsappEnviado
+        ? "WhatsApp (Enviado ✓)"
+        : "Enviar WhatsApp";
+    const classeWppMenu = isConcluida
+      ? "item-wpp"
+      : sol.whatsappEnviado
+        ? "item-wpp-enviado"
+        : "item-wpp";
 
-      // Exibe botão Canhoto para toda Devolução (DEV) e Troca (TRC), inclusive Entregue em Loja
-      const mostrarBotaoCanhoto = sol.tipo === "DEV" || sol.tipo === "TRC";
+    const mostrarBotaoCanhoto = sol.tipo === "DEV" || sol.tipo === "TRC";
 
-      tbody.innerHTML += `
-        <tr>
-          <td>
-            <strong>${sol.protocolo}</strong>
-            ${sol.entregueEmLoja ? `<br><span class="badge-loja-entrega">ENTREGA EM LOJA</span>` : ""}
-          </td>
-          <td><small style="font-weight: 600; color: #334155;">${sol.loja || "-"}</small></td>
-          <td><span class="badge ${classeBadgeTipo}">${sol.tipo}</span></td>
-          <td>${sol.dataSolicitacao}</td>
-          <td>
-            ${sol.cliente.nome}<br>
-            <small style="color: #666;">${sol.cliente.telefone}</small>
-          </td>
-          <td>#${sol.numeroPedido}</td>
-          <td>${textoColunaItens}</td>
-          <td><span class="badge ${classeBadgeStatus}">${sol.status}</span></td>
-          <td>
-            <div class="acoes-linha">
-              ${
-                mostrarBotaoCanhoto
-                  ? `<button type="button" class="btn-acao-tabela btn-canhoto" onclick="imprimirCanhotoColeta('${sol.protocolo}')" title="Imprimir comprovante em 2 vias (A4 Retrato)">
-                      Canhoto
-                    </button>`
-                  : ""
-              }
+    const podeEditarDevTrc =
+      !isEstorno && sol.status === "Em andamento" && !devBloqueadaPorEstorno;
+    const podeEditarEstorno = isEstorno && isEmAberto;
 
-              <div class="menu-tres-pontinhos-wrapper">
-                <button
-                  type="button"
-                  class="btn-tres-pontinhos"
-                  onclick="alternarMenuDropdown(event, '${sol.protocolo}')"
-                  title="Mais ações"
-                >
-                  ⋮
+    tbody.innerHTML += `
+      <tr>
+        <td>
+          <strong>${sol.protocolo}</strong>
+          ${sol.entregueEmLoja ? `<br><span class="badge-loja-entrega">ENTREGA EM LOJA</span>` : ""}
+          ${sol.protocoloDevolucao ? `<br><small style="color: #0369a1; font-weight: 600;">Ref: ${sol.protocoloDevolucao}</small>` : ""}
+          ${estornoVinculado ? `<br><span class="badge-vinculada-est" title="DEV bloqueada enquanto vinculada a este estorno">ESTORNO: ${estornoVinculado.protocolo}</span>` : ""}
+        </td>
+        <td><small style="font-weight: 600; color: #334155;">${sol.loja || "-"}</small></td>
+        <td><span class="badge ${classeBadgeTipo}">${sol.tipo}</span></td>
+        <td>${sol.dataSolicitacao}</td>
+        <td>
+          ${sol.cliente.nome}<br>
+          <small style="color: #666;">${sol.cliente.telefone}</small>
+        </td>
+        <td>#${sol.numeroPedido}</td>
+        <td>${textoColunaItens}</td>
+        <td><span class="badge ${classeBadgeStatus}">${sol.status}</span></td>
+        <td>
+          <div class="acoes-linha">
+            ${
+              mostrarBotaoCanhoto
+                ? `<button type="button" class="btn-acao-tabela btn-canhoto" onclick="imprimirCanhotoColeta('${sol.protocolo}')" title="Imprimir comprovante em 2 vias (A4 Retrato)">
+                    Canhoto
+                  </button>`
+                : ""
+            }
+            ${
+              isEstorno
+                ? `<button type="button" class="btn-acao-tabela btn-email-fin" onclick="abrirModalEmailEstorno('${sol.protocolo}')" title="Copiar e-mail para o financeiro">
+                    E-mail Fin.
+                  </button>`
+                : ""
+            }
+
+            <div class="menu-tres-pontinhos-wrapper">
+              <button
+                type="button"
+                class="btn-tres-pontinhos"
+                onclick="alternarMenuDropdown(event, '${sol.protocolo}')"
+                title="Mais ações"
+              >
+                ⋮
+              </button>
+              <div class="dropdown-acoes" id="dropdown-${sol.protocolo}">
+                <button type="button" class="dropdown-item" onclick="fecharTodosMenusDropdown(); verDetalhes('${sol.protocolo}')">
+                  Ver Detalhes
                 </button>
-                <div class="dropdown-acoes" id="dropdown-${sol.protocolo}">
-                  <button type="button" class="dropdown-item" onclick="fecharTodosMenusDropdown(); verDetalhes('${sol.protocolo}')">
-                    Ver Detalhes
-                  </button>
-                  ${
-                    sol.status === "Em andamento"
-                      ? `<button type="button" class="dropdown-item" onclick="fecharTodosMenusDropdown(); abrirModalEdicao('${sol.protocolo}')">
-                          Editar Solicitação
-                        </button>`
-                      : ""
-                  }
-                  <button type="button" class="dropdown-item ${classeWppMenu}" onclick="fecharTodosMenusDropdown(); enviarWhatsApp('${sol.protocolo}')">
-                    ${textoWppMenu}
-                  </button>
-                  <div class="dropdown-divisor"></div>
-                  ${
-                    sol.status === "Em andamento"
-                      ? `<button type="button" class="dropdown-item item-concluir" onclick="fecharTodosMenusDropdown(); abrirModalConferencia('${sol.protocolo}')">
-                          Concluir (Conferir)
-                        </button>
-                        <button type="button" class="dropdown-item item-cancelar" onclick="fecharTodosMenusDropdown(); abrirModalCancelamento('${sol.protocolo}')">
-                          Cancelar Solicitação
-                        </button>`
-                      : `<button type="button" class="dropdown-item" onclick="fecharTodosMenusDropdown(); reabrirSolicitacao('${sol.protocolo}')">
-                          Reabrir Solicitação
-                        </button>`
-                  }
-                </div>
+                ${
+                  podeEditarDevTrc
+                    ? `<button type="button" class="dropdown-item" onclick="fecharTodosMenusDropdown(); abrirModalEdicao('${sol.protocolo}')">
+                        Editar Solicitação
+                      </button>`
+                    : ""
+                }
+                ${
+                  podeEditarEstorno
+                    ? `<button type="button" class="dropdown-item" onclick="fecharTodosMenusDropdown(); abrirModalEdicaoEstorno('${sol.protocolo}')">
+                        Editar Estorno
+                      </button>`
+                    : ""
+                }
+                <button type="button" class="dropdown-item ${classeWppMenu}" onclick="fecharTodosMenusDropdown(); enviarWhatsApp('${sol.protocolo}')">
+                  ${textoWppMenu}
+                </button>
+
+                ${
+                  devBloqueadaPorEstorno
+                    ? `<div class="dropdown-divisor"></div>
+                       <div style="padding: 8px 14px; font-size: 11.5px; color: #c2410c; background: #fff7ed; line-height: 1.35;">
+                         🔒 Bloqueada (vinculada ao estorno <strong>${estornoVinculado.protocolo}</strong>). Cancele o estorno para liberar alterações.
+                       </div>`
+                    : `
+                      <div class="dropdown-divisor"></div>
+                      ${
+                        isEstorno && sol.status === "Em andamento"
+                          ? `<button type="button" class="dropdown-item" style="color: #0284c7;" onclick="fecharTodosMenusDropdown(); atualizarStatusSimples('${sol.protocolo}', 'Aguardando Financeiro')">
+                              Marcar Aguard. Financeiro
+                            </button>`
+                          : ""
+                      }
+                      ${
+                        isEmAberto
+                          ? isEstorno
+                            ? `<button type="button" class="dropdown-item item-concluir" onclick="fecharTodosMenusDropdown(); atualizarStatusSimples('${sol.protocolo}', 'Concluída')">
+                                Concluir Estorno
+                              </button>`
+                            : `<button type="button" class="dropdown-item item-concluir" onclick="fecharTodosMenusDropdown(); abrirModalConferencia('${sol.protocolo}')">
+                                Concluir (Conferir)
+                              </button>`
+                          : ""
+                      }
+                      ${
+                        isEmAberto
+                          ? `<button type="button" class="dropdown-item item-cancelar" onclick="fecharTodosMenusDropdown(); abrirModalCancelamento('${sol.protocolo}')">
+                              Cancelar Solicitação
+                            </button>`
+                          : `<button type="button" class="dropdown-item" onclick="fecharTodosMenusDropdown(); reabrirSolicitacao('${sol.protocolo}')">
+                              Reabrir Solicitação
+                            </button>`
+                      }
+                      ${
+                        isDevolucao && sol.status === "Concluída" && !estornoVinculado
+                          ? `<div class="dropdown-divisor"></div>
+                             <button type="button" class="dropdown-item" style="color: #0284c7;" onclick="window.location.href='estorno/index.html?dev=${sol.protocolo}'">
+                               Solicitar Estorno (EST) →
+                             </button>`
+                          : ""
+                      }
+                    `
+                }
               </div>
             </div>
-          </td>
-        </tr>
-      `;
-    });
+          </div>
+        </td>
+      </tr>
+    `;
+  });
 }
 
 // =========================================================================
-// IMPRESSÃO DO CANHOTO / COMPROVANTE EM 2 VIAS (A4 RETRATO - LETRAS MAIORES)
+// E-MAIL FINANCEIRO E STATUS SIMPLES (ESTORNO)
+// =========================================================================
+
+function abrirModalEmailEstorno(protocolo) {
+  const sol = cacheSolicitacoes.find((s) => s.protocolo === protocolo);
+  if (!sol) return;
+
+  const valorEstornar = sol.valorDevolvido || sol.valorEstorno || "R$ 0,00";
+  const assunto = `Solicitação de Estorno - Pedido #${sol.numeroPedido}${sol.sequenciaCliente ? ` | SEQ ${sol.sequenciaCliente}` : ""}`;
+  const linhaDev = sol.protocoloDevolucao
+    ? `• Protocolo de Devolução: ${sol.protocoloDevolucao} (uso interno do setor)\n`
+    : "";
+
+  const corpo = `Olá,
+
+Segue solicitação de estorno cliente E-Commerce (Bigmais em Casa):
+
+- Data de Solicitação: ${sol.dataSolicitacao}
+- Loja: ${sol.loja || "Não informada"}
+- Solicitante: ${sol.solicitante}
+
+CONTROLE INTERNO DO SETOR E-COMMERCE (USO EXCLUSIVO DO SETOR — NÃO É CÓDIGO DO FINANCEIRO):
+
+- Protocolo de Estorno: ${sol.protocolo} (uso interno do setor)
+${linhaDev}
+DADOS DO CLIENTE:
+
+- Nome do Cliente: ${sol.cliente.nome}
+- CPF do Cliente: ${sol.cliente.cpf}
+- Sequência Cliente (SEQ): ${sol.sequenciaCliente || "Não informada"}
+- Telefone (WhatsApp): ${sol.cliente.telefone}
+
+DADOS FISCAIS E FINANCEIROS:
+
+- Número do Pedido: #${sol.numeroPedido}
+- Nota Fiscal do Pedido (Nº): ${sol.nfPedido || "Não informada"}
+- Nota Fiscal da Devolução: ${sol.nfDevolucao || "Não informada"}
+- Valor do Pedido: ${sol.valorPedido || "Não informado"}
+- Valor Devolvido (a Estornar): ${valorEstornar}
+- Forma de Pagamento: ${sol.formaPagamento || "Não informada"}
+
+MOTIVO DA SOLICITAÇÃO:
+
+- Motivo: ${sol.motivo || "Não especificado"}
+- Detalhes / Observação: ${sol.observacao || "Sem observações adicionais."}
+
+Qualquer dúvida estamos à disposição.
+
+Atenciosamente, Equipe E-commerce Bigmais em Casa.`;
+
+  document.getElementById("painel-email-assunto").value = assunto;
+  document.getElementById("painel-email-corpo").value = corpo;
+  document.getElementById("btn-copiar-email-painel").textContent =
+    "Copiar Assunto e E-mail";
+  document.getElementById("modal-email-estorno").showModal();
+}
+
+async function copiarEmailPainel() {
+  const assunto = document.getElementById("painel-email-assunto").value;
+  const corpo = document.getElementById("painel-email-corpo").value;
+  try {
+    await navigator.clipboard.writeText(`Assunto: ${assunto}\n\n${corpo}`);
+    const btn = document.getElementById("btn-copiar-email-painel");
+    btn.textContent = "✓ Copiado!";
+    setTimeout(() => {
+      btn.textContent = "Copiar Assunto e E-mail";
+    }, 2500);
+  } catch (e) {
+    document.getElementById("painel-email-corpo").select();
+    document.execCommand("copy");
+  }
+}
+
+async function atualizarStatusSimples(protocolo, novoStatus) {
+  const sol = cacheSolicitacoes.find((s) => s.protocolo === protocolo);
+  if (sol && sol.tipo === "DEV" && obterEstornoVinculado(sol.protocolo)) {
+    alert(
+      "Esta devolução está vinculada a um estorno ativo e não pode ter o status alterado."
+    );
+    return;
+  }
+
+  const confirmar = confirm(
+    `Alterar o status da solicitação ${protocolo} para "${novoStatus}"?`
+  );
+  if (!confirmar) return;
+
+  try {
+    const resposta = await fetch(URL_API_PLANILHA, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        acao: "atualizarStatus",
+        protocolo: protocolo,
+        novoStatus: novoStatus,
+      }),
+    });
+
+    const resultado = await resposta.json();
+    if (resultado.sucesso) {
+      const indice = cacheSolicitacoes.findIndex(
+        (s) => s.protocolo === protocolo
+      );
+      if (indice !== -1) {
+        cacheSolicitacoes[indice].status = novoStatus;
+      }
+      renderizarTabela();
+    } else {
+      alert("Erro ao atualizar status: " + resultado.erro);
+    }
+  } catch (e) {
+    alert("Falha de conexão ao atualizar status.");
+  }
+}
+
+// =========================================================================
+// EDIÇÃO DE ESTORNO (EST NÃO FINALIZADO) — COM TROCA DE DEV VINCULADA
+// =========================================================================
+
+function mascaraMoedaPainel(input) {
+  let numeros = input.value.replace(/\D/g, "");
+  if (numeros === "") {
+    input.value = "";
+    return;
+  }
+  const valorFloat = parseInt(numeros, 10) / 100;
+  input.value = valorFloat.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+function converterMoedaPainelParaFloat(textoMoeda) {
+  if (!textoMoeda) return 0;
+  return (
+    parseFloat(textoMoeda.replace(/[R$\s.]/g, "").replace(",", ".")) || 0
+  );
+}
+
+function popularSelectDevEdicaoEstorno(protocoloEstornoAtual, protocoloDevAtual) {
+  const select = document.getElementById("edit-est-dev-select");
+  select.innerHTML = `<option value="">-- Selecione a DEV concluída --</option>`;
+
+  // São elegíveis: DEVs com status "Concluída" que NÃO estejam vinculadas a outro EST ativo
+  // (a DEV já vinculada ao próprio EST em edição permanece na lista)
+  const devsDisponiveis = cacheSolicitacoes.filter((s) => {
+    if (s.tipo !== "DEV") return false;
+    if (s.protocolo === protocoloDevAtual) return true;
+    if (s.status !== "Concluída") return false;
+    const estAtivo = obterEstornoVinculado(s.protocolo, protocoloEstornoAtual);
+    return !estAtivo;
+  });
+
+  devsDisponiveis
+    .slice()
+    .reverse()
+    .forEach((dev) => {
+      const opt = document.createElement("option");
+      opt.value = dev.protocolo;
+      opt.textContent = `${dev.protocolo} — Pedido #${dev.numeroPedido} (${dev.cliente.nome})`;
+      select.appendChild(opt);
+    });
+
+  select.value = protocoloDevAtual || "";
+}
+
+function aoTrocarDevNaEdicaoEstorno() {
+  const select = document.getElementById("edit-est-dev-select");
+  const novaDevProto = select.value;
+
+  if (novaDevProto === devAnteriorEdicaoEstorno) return;
+
+  // Limpa todos os campos do modal de edição de estorno antes de carregar a nova DEV
+  document.getElementById("edit-est-loja").value = "Loja 8 - Vila Isa";
+  document.getElementById("edit-est-nome").value = "";
+  document.getElementById("edit-est-cpf").value = "";
+  document.getElementById("edit-est-seq").value = "";
+  document.getElementById("edit-est-telefone").value = "";
+  document.getElementById("edit-est-pedido").value = "";
+  document.getElementById("edit-est-nf-pedido").value = "";
+  document.getElementById("edit-est-nf-dev").value = "";
+  document.getElementById("edit-est-valor-pedido").value = "";
+  document.getElementById("edit-est-valor-devolvido").value = "";
+  document.getElementById("edit-est-pagamento").value = "Crédito";
+  document.getElementById("edit-est-motivo").value = "";
+  document.getElementById("edit-est-observacao").value = "";
+
+  devAnteriorEdicaoEstorno = novaDevProto;
+
+  if (!novaDevProto) return;
+
+  const dev = cacheSolicitacoes.find((s) => s.protocolo === novaDevProto);
+  if (!dev) return;
+
+  if (dev.loja) document.getElementById("edit-est-loja").value = dev.loja;
+  document.getElementById("edit-est-nome").value = dev.cliente?.nome || "";
+  document.getElementById("edit-est-cpf").value = dev.cliente?.cpf || "";
+  document.getElementById("edit-est-telefone").value =
+    dev.cliente?.telefone || "";
+  document.getElementById("edit-est-pedido").value = dev.numeroPedido || "";
+  document.getElementById("edit-est-motivo").value =
+    dev.compraInteira && (!dev.produtos || dev.produtos.length === 0)
+      ? "Devolução da compra inteira"
+      : dev.motivo || "";
+
+  const resumoItens =
+    dev.compraInteira && (!dev.produtos || dev.produtos.length === 0)
+      ? "Devolução da compra inteira."
+      : (dev.produtos || [])
+          .map((p) => `${p.quantidade}${p.unidade} x ${p.descricao}`)
+          .join(", ");
+
+  if (resumoItens) {
+    document.getElementById("edit-est-observacao").value =
+      `Itens devolvidos: ${resumoItens}`;
+  }
+}
+
+function abrirModalEdicaoEstorno(protocolo) {
+  const sol = cacheSolicitacoes.find((s) => s.protocolo === protocolo);
+  if (!sol) return;
+
+  if (sol.status === "Concluída" || sol.status === "Cancelada") {
+    alert(
+      "Solicitações de estorno concluídas ou canceladas não podem ser editadas."
+    );
+    return;
+  }
+
+  protocoloEstornoEmEdicao = protocolo;
+  devAnteriorEdicaoEstorno = sol.protocoloDevolucao || "";
+
+  document.getElementById("edit-est-titulo").textContent =
+    `Editar Solicitação de Estorno - ${sol.protocolo}`;
+
+  popularSelectDevEdicaoEstorno(sol.protocolo, sol.protocoloDevolucao || "");
+
+  document.getElementById("edit-est-loja").value =
+    sol.loja || "Loja 8 - Vila Isa";
+  document.getElementById("edit-est-solicitante").value = sol.solicitante || "";
+
+  document.getElementById("edit-est-nome").value = sol.cliente?.nome || "";
+  document.getElementById("edit-est-cpf").value = sol.cliente?.cpf || "";
+  document.getElementById("edit-est-seq").value = sol.sequenciaCliente || "";
+  document.getElementById("edit-est-telefone").value =
+    sol.cliente?.telefone || "";
+
+  document.getElementById("edit-est-pedido").value = sol.numeroPedido || "";
+  document.getElementById("edit-est-nf-pedido").value = sol.nfPedido || "";
+  document.getElementById("edit-est-nf-dev").value = sol.nfDevolucao || "";
+  document.getElementById("edit-est-valor-pedido").value =
+    sol.valorPedido || "";
+  document.getElementById("edit-est-valor-devolvido").value =
+    sol.valorDevolvido || sol.valorEstorno || "";
+
+  const selectPag = document.getElementById("edit-est-pagamento");
+  const opcoesPag = Array.from(selectPag.options).map((o) => o.value);
+  selectPag.value = opcoesPag.includes(sol.formaPagamento)
+    ? sol.formaPagamento
+    : "Crédito";
+
+  document.getElementById("edit-est-motivo").value = sol.motivo || "";
+  document.getElementById("edit-est-observacao").value = sol.observacao || "";
+
+  document.getElementById("modal-edicao-estorno").showModal();
+}
+
+async function salvarEdicaoEstorno() {
+  const protocoloDevolucao = document
+    .getElementById("edit-est-dev-select")
+    .value.trim();
+
+  if (!protocoloDevolucao) {
+    alert("Selecione obrigatoriamente uma Devolução Concluída (DEV).");
+    document.getElementById("edit-est-dev-select").focus();
+    return;
+  }
+
+  // Garante que a DEV selecionada não está vinculada a outro EST ativo
+  const conflitoEst = obterEstornoVinculado(
+    protocoloDevolucao,
+    protocoloEstornoEmEdicao
+  );
+  if (conflitoEst) {
+    alert(
+      `A devolução ${protocoloDevolucao} já está vinculada ao estorno ${conflitoEst.protocolo}. Selecione outra DEV livre.`
+    );
+    return;
+  }
+
+  const loja = document.getElementById("edit-est-loja").value;
+  const solicitante = document
+    .getElementById("edit-est-solicitante")
+    .value.trim();
+  const nome = document.getElementById("edit-est-nome").value.trim();
+  const cpf = document.getElementById("edit-est-cpf").value.trim();
+  const sequenciaCliente = document
+    .getElementById("edit-est-seq")
+    .value.trim();
+  const telefone = document.getElementById("edit-est-telefone").value.trim();
+
+  const numeroPedido = document
+    .getElementById("edit-est-pedido")
+    .value.trim()
+    .replace(/^#+/, "");
+  const nfPedido = document.getElementById("edit-est-nf-pedido").value.trim();
+  const nfDevolucao = document.getElementById("edit-est-nf-dev").value.trim();
+  const valorPedido = document
+    .getElementById("edit-est-valor-pedido")
+    .value.trim();
+  const valorDevolvido = document
+    .getElementById("edit-est-valor-devolvido")
+    .value.trim();
+  const formaPagamento = document.getElementById("edit-est-pagamento").value;
+  const motivo = document.getElementById("edit-est-motivo").value.trim();
+  const observacao = document
+    .getElementById("edit-est-observacao")
+    .value.trim();
+
+  if (
+    !solicitante ||
+    !nome ||
+    !cpf ||
+    !sequenciaCliente ||
+    !telefone ||
+    !numeroPedido ||
+    !nfPedido ||
+    !nfDevolucao ||
+    !valorPedido ||
+    !valorDevolvido ||
+    !motivo
+  ) {
+    alert(
+      "Preencha todos os campos obrigatórios (incluindo Nota Fiscal da Devolução) antes de salvar."
+    );
+    return;
+  }
+
+  const numPedido = converterMoedaPainelParaFloat(valorPedido);
+  const numDevolvido = converterMoedaPainelParaFloat(valorDevolvido);
+
+  if (numPedido <= 0 || numDevolvido <= 0) {
+    alert("Informe valores monetários válidos maiores que R$ 0,00.");
+    return;
+  }
+
+  if (numDevolvido > numPedido) {
+    alert("O Valor Devolvido não pode ser maior que o Valor do Pedido.");
+    return;
+  }
+
+  const botao = document.getElementById("btn-salvar-edicao-estorno");
+  botao.disabled = true;
+  botao.textContent = "Salvando Alterações...";
+
+  const dadosEditados = {
+    tipo: "EST",
+    loja,
+    solicitante,
+    protocoloDevolucao,
+    numeroPedido,
+    sequenciaCliente,
+    nfPedido,
+    nfDevolucao,
+    valorPedido,
+    valorDevolvido,
+    valorEstorno: valorDevolvido,
+    formaPagamento,
+    motivo,
+    observacao,
+    cliente: { nome, cpf, telefone },
+    endereco: {
+      rua: `VINCULADO À DEVOLUÇÃO ${protocoloDevolucao}`,
+      cep: "",
+      numero: "",
+      bairro: "",
+      cidade: "",
+      estado: "",
+      complemento: "",
+    },
+  };
+
+  try {
+    const resposta = await fetch(URL_API_PLANILHA, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        acao: "editar",
+        protocoloOriginal: protocoloEstornoEmEdicao,
+        dados: dadosEditados,
+      }),
+    });
+
+    const resultado = await resposta.json();
+    if (resultado.sucesso) {
+      const indice = cacheSolicitacoes.findIndex(
+        (s) => s.protocolo === protocoloEstornoEmEdicao
+      );
+      if (indice !== -1) {
+        cacheSolicitacoes[indice] = resultado.dadosAtualizados;
+      }
+
+      document.getElementById("modal-edicao-estorno").close();
+      renderizarTabela();
+      alert(
+        `Estorno ${resultado.dadosAtualizados.protocolo} atualizado com sucesso!`
+      );
+    } else {
+      alert("Erro ao editar estorno na planilha: " + resultado.erro);
+    }
+  } catch (erro) {
+    alert("Falha de conexão ao tentar salvar as alterações do estorno.");
+  } finally {
+    botao.disabled = false;
+    botao.textContent = "Salvar Alterações";
+  }
+}
+
+// =========================================================================
+// IMPRESSÃO DO CANHOTO / COMPROVANTE EM 2 VIAS (A4 RETRATO)
 // =========================================================================
 
 function montarHTMLViaCanhoto(sol, rotuloVia, tituloDocumento, termoRodape, classeExtra) {
@@ -465,7 +1012,7 @@ function imprimirCanhotoColeta(protocolo) {
 }
 
 // =========================================================================
-// EDIÇÃO DE SOLICITAÇÃO EM ANDAMENTO
+// EDIÇÃO DE SOLICITAÇÃO EM ANDAMENTO (DEV / TRC)
 // =========================================================================
 
 function mascaraCPFPainel(input) {
@@ -512,9 +1059,7 @@ async function buscarCEPEdicao(input) {
         document.getElementById("edit-estado").value = dados.uf;
       }
     }
-  } catch (erro) {
-    // Silencioso
-  }
+  } catch (erro) {}
 }
 
 function alternarEntregueEmLojaEdicao() {
@@ -564,6 +1109,13 @@ function alternarCompraInteiraEdicao() {
 function abrirModalEdicao(protocolo) {
   const sol = cacheSolicitacoes.find((s) => s.protocolo === protocolo);
   if (!sol) return;
+
+  if (sol.tipo === "DEV" && obterEstornoVinculado(sol.protocolo)) {
+    alert(
+      "Esta devolução está vinculada a um estorno ativo e não pode ser editada. Cancele o estorno primeiro caso precise alterá-la."
+    );
+    return;
+  }
 
   protocoloEmEdicao = protocolo;
   itensEmEdicao = JSON.parse(JSON.stringify(sol.produtos || []));
@@ -939,6 +1491,13 @@ function abrirModalConferencia(protocolo) {
   const sol = cacheSolicitacoes.find((s) => s.protocolo === protocolo);
   if (!sol) return;
 
+  if (sol.tipo === "DEV" && obterEstornoVinculado(sol.protocolo)) {
+    alert(
+      "Esta devolução está vinculada a um estorno ativo e não pode ser alterada."
+    );
+    return;
+  }
+
   protocoloEmConferencia = protocolo;
   itensEmConferencia = JSON.parse(JSON.stringify(sol.produtos || []));
   compraInteiraEmConferencia = Boolean(sol.compraInteira);
@@ -1181,7 +1740,10 @@ async function confirmarConclusaoConferencia() {
     (i) => !i.quantidade || i.quantidade === "0" || i.quantidade === "0,000"
   );
 
-  if ((!compraInteiraEmConferencia && itensEmConferencia.length === 0) || temItemInvalido) {
+  if (
+    (!compraInteiraEmConferencia && itensEmConferencia.length === 0) ||
+    temItemInvalido
+  ) {
     alert(
       "Verifique os itens: é obrigatório ter ao menos 1 item com quantidade maior que zero."
     );
@@ -1209,17 +1771,27 @@ async function confirmarConclusaoConferencia() {
       const indice = cacheSolicitacoes.findIndex(
         (s) => s.protocolo === protocoloEmConferencia
       );
-      if (indice !== -1) {
-        cacheSolicitacoes[indice].status = "Concluída";
-        cacheSolicitacoes[indice].produtos = [...itensEmConferencia];
+      const solConcluida = indice !== -1 ? cacheSolicitacoes[indice] : null;
+      if (solConcluida) {
+        solConcluida.status = "Concluída";
+        solConcluida.produtos = [...itensEmConferencia];
       }
 
       document.getElementById("modal-conferencia").close();
       renderizarTabela();
 
-      alert(
-        `Solicitação ${protocoloEmConferencia} concluída com sucesso!\n\nA opção "WhatsApp Conclusão" no menu já está pronta.`
-      );
+      if (solConcluida && solConcluida.tipo === "DEV") {
+        const abrirEstorno = confirm(
+          `Devolução ${protocoloEmConferencia} concluída com sucesso!\n\nDeseja abrir agora a Solicitação de Estorno (EST) já preenchida com os dados deste pedido?`
+        );
+        if (abrirEstorno) {
+          window.location.href = `estorno/index.html?dev=${protocoloEmConferencia}`;
+        }
+      } else {
+        alert(
+          `Solicitação ${protocoloEmConferencia} concluída com sucesso!\n\nA opção "WhatsApp Conclusão" no menu já está pronta.`
+        );
+      }
     } else {
       alert("Erro ao concluir na planilha: " + resultado.erro);
     }
@@ -1236,6 +1808,14 @@ async function confirmarConclusaoConferencia() {
 // =========================================================================
 
 function abrirModalCancelamento(protocolo) {
+  const sol = cacheSolicitacoes.find((s) => s.protocolo === protocolo);
+  if (sol && sol.tipo === "DEV" && obterEstornoVinculado(sol.protocolo)) {
+    alert(
+      "Esta devolução está vinculada a um estorno ativo e não pode ser cancelada. Cancele o estorno primeiro."
+    );
+    return;
+  }
+
   protocoloEmCancelamento = protocolo;
 
   document.getElementById("cancelamento-titulo").textContent =
@@ -1334,6 +1914,27 @@ async function reabrirSolicitacao(protocolo) {
   const sol = cacheSolicitacoes.find((s) => s.protocolo === protocolo);
   if (!sol) return;
 
+  if (sol.tipo === "DEV" && obterEstornoVinculado(sol.protocolo)) {
+    alert(
+      "Esta devolução está vinculada a um estorno ativo e não pode ser reaberta. Cancele o estorno primeiro."
+    );
+    return;
+  }
+
+  // Se estiver reabrindo um EST cancelado, verifica se a DEV dele não foi vinculada a outro EST nesse meio tempo
+  if (sol.tipo === "EST" && sol.status === "Cancelada" && sol.protocoloDevolucao) {
+    const devJaOcupada = obterEstornoVinculado(
+      sol.protocoloDevolucao,
+      sol.protocolo
+    );
+    if (devJaOcupada) {
+      alert(
+        `Não é possível reabrir este estorno porque a devolução ${sol.protocoloDevolucao} já foi vinculada ao estorno ${devJaOcupada.protocolo}.`
+      );
+      return;
+    }
+  }
+
   const confirmar = confirm(
     `Deseja reabrir a solicitação ${protocolo} (atualmente "${sol.status}") e voltar o status para "Em andamento"?`
   );
@@ -1374,35 +1975,18 @@ async function reabrirSolicitacao(protocolo) {
 }
 
 // =========================================================================
-// DETALHES E WHATSAPP (DEVOLUÇÃO vs TROCA & ENTREGA EM LOJA & COMPRA INTEIRA)
+// DETALHES E WHATSAPP (DEV, TRC e EST)
 // =========================================================================
 
 function verDetalhes(protocolo) {
   const sol = cacheSolicitacoes.find((s) => s.protocolo === protocolo);
   if (!sol) return;
 
-  const tituloTipo = sol.tipo === "TRC" ? "Troca" : "Devolução";
+  const isEstorno = sol.tipo === "EST";
+  const tituloTipo =
+    sol.tipo === "TRC" ? "Troca" : isEstorno ? "Estorno" : "Devolução";
   document.getElementById("detalhe-titulo").textContent =
     `${sol.protocolo} — ${tituloTipo} (${sol.status})`;
-
-  const temItensIndividuais = sol.produtos && sol.produtos.length > 0;
-  const isCompraInteira = Boolean(sol.compraInteira) && !temItensIndividuais;
-
-  const listaProdutosHTML = isCompraInteira
-    ? `<div class="aviso-compra-inteira" style="margin-top: 6px;">
-         <strong>Compra Inteira:</strong> Devolução/troca integral de todos os itens do pedido <strong>#${sol.numeroPedido}</strong>.
-       </div>`
-    : `<ul style="margin-left: 20px; margin-top: 5px;">${sol.produtos
-        .map(
-          (p) =>
-            `<li><strong>${p.quantidade} ${p.unidade}</strong> x ${p.descricao} <small>(SKU: ${p.sku}${p.ean ? ` | EAN: ${p.ean}` : ""})</small></li>`
-        )
-        .join("")}</ul>`;
-
-  const tituloLista =
-    sol.status === "Concluída"
-      ? "Itens conferidos / recebidos:"
-      : "Itens da solicitação:";
 
   const blocoCancelamentoHTML =
     sol.status === "Cancelada" && sol.motivoCancelamento
@@ -1412,40 +1996,90 @@ function verDetalhes(protocolo) {
          </div>`
       : "";
 
-  const enderecoDetalhesHTML = sol.entregueEmLoja
-    ? `<span class="badge-loja-entrega" style="font-size: 12px;">ENTREGUE EM LOJA (Cliente trouxe o produto até a loja)</span>`
-    : `${sol.endereco.rua}, ${sol.endereco.numero} - ${sol.endereco.bairro}, ${sol.endereco.cidade}/${sol.endereco.estado} - CEP: ${sol.endereco.cep} ${sol.endereco.complemento ? `(${sol.endereco.complemento})` : ""}`;
-
-  const mostrarCanhoto = sol.tipo === "DEV" || sol.tipo === "TRC";
-
-  document.getElementById("detalhe-corpo").innerHTML = `
-    <p><strong>Loja:</strong> ${sol.loja || "Não informada"} | <strong>Data:</strong> ${sol.dataSolicitacao}</p>
-    <p><strong>Solicitante:</strong> ${sol.solicitante} | <strong>Pedido:</strong> #${sol.numeroPedido}</p>
-    <p><strong>Motivo:</strong> ${sol.motivo}</p>
-    ${sol.observacao ? `<p><strong>Observação:</strong> ${sol.observacao}</p>` : ""}
-    ${blocoCancelamentoHTML}
-    <hr style="margin: 12px 0; border: none; border-top: 1px solid #eee;">
-    <p><strong>Cliente:</strong> ${sol.cliente.nome} (CPF: ${sol.cliente.cpf})</p>
-    <p><strong>Telefone:</strong> ${sol.cliente.telefone}</p>
-    <p><strong>Coleta / Entrega:</strong> ${enderecoDetalhesHTML}</p>
-    <hr style="margin: 12px 0; border: none; border-top: 1px solid #eee;">
-    <p><strong>${tituloLista}</strong></p>
-    ${listaProdutosHTML}
-  `;
-
   const botoesModal = document.getElementById("detalhe-botoes");
-  botoesModal.innerHTML = `
-    ${
-      mostrarCanhoto
-        ? `<button type="button" class="btn-azul" onclick="document.getElementById('modal-detalhes').close(); imprimirCanhotoColeta('${sol.protocolo}')">
-            Imprimir Canhoto (2 Vias)
-          </button>`
-        : ""
-    }
-    <button type="button" class="btn-cancelar" onclick="document.getElementById('modal-detalhes').close()">
-      Fechar
-    </button>
-  `;
+
+  if (isEstorno) {
+    document.getElementById("detalhe-corpo").innerHTML = `
+      <p><strong>Loja:</strong> ${sol.loja || "Não informada"} | <strong>Data de Solicitação:</strong> ${sol.dataSolicitacao}</p>
+      <p><strong>Solicitante:</strong> ${sol.solicitante} | <strong>Pedido:</strong> #${sol.numeroPedido}</p>
+      ${sol.protocoloDevolucao ? `<p><strong>Devolução Vinculada:</strong> ${sol.protocoloDevolucao}</p>` : ""}
+      <p><strong>Motivo:</strong> ${sol.motivo}</p>
+      ${sol.observacao ? `<p><strong>Observação:</strong> ${sol.observacao}</p>` : ""}
+      ${blocoCancelamentoHTML}
+      <hr style="margin: 12px 0; border: none; border-top: 1px solid #eee;">
+      <p><strong>Cliente:</strong> ${sol.cliente.nome} | <strong>CPF:</strong> ${sol.cliente.cpf}</p>
+      <p><strong>Sequência Cliente (SEQ):</strong> ${sol.sequenciaCliente || "-"} | <strong>Telefone:</strong> ${sol.cliente.telefone}</p>
+      <hr style="margin: 12px 0; border: none; border-top: 1px solid #eee;">
+      <p><strong>NF do Pedido:</strong> ${sol.nfPedido || "-"} | <strong>NF da Devolução:</strong> ${sol.nfDevolucao || "-"}</p>
+      <p><strong>Valor do Pedido:</strong> ${sol.valorPedido || "-"} | <strong>Valor Devolvido:</strong> <strong style="color: #0369a1;">${sol.valorDevolvido || sol.valorEstorno || "-"}</strong></p>
+      <p><strong>Forma de Pagamento:</strong> ${sol.formaPagamento || "-"}</p>
+    `;
+
+    botoesModal.innerHTML = `
+      <button type="button" class="btn-azul" onclick="document.getElementById('modal-detalhes').close(); abrirModalEmailEstorno('${sol.protocolo}')">
+        Copiar E-mail Financeiro
+      </button>
+      <button type="button" class="btn-cancelar" onclick="document.getElementById('modal-detalhes').close()">
+        Fechar
+      </button>
+    `;
+  } else {
+    const temItensIndividuais = sol.produtos && sol.produtos.length > 0;
+    const isCompraInteira = Boolean(sol.compraInteira) && !temItensIndividuais;
+    const estornoVinc =
+      sol.tipo === "DEV" ? obterEstornoVinculado(sol.protocolo) : null;
+
+    const listaProdutosHTML = isCompraInteira
+      ? `<div class="aviso-compra-inteira" style="margin-top: 6px;">
+           <strong>Compra Inteira:</strong> Devolução/troca integral de todos os itens do pedido <strong>#${sol.numeroPedido}</strong>.
+         </div>`
+      : `<ul style="margin-left: 20px; margin-top: 5px;">${sol.produtos
+          .map(
+            (p) =>
+              `<li><strong>${p.quantidade} ${p.unidade}</strong> x ${p.descricao} <small>(SKU: ${p.sku}${p.ean ? ` | EAN: ${p.ean}` : ""})</small></li>`
+          )
+          .join("")}</ul>`;
+
+    const tituloLista =
+      sol.status === "Concluída"
+        ? "Itens conferidos / recebidos:"
+        : "Itens da solicitação:";
+
+    const enderecoDetalhesHTML = sol.entregueEmLoja
+      ? `<span class="badge-loja-entrega" style="font-size: 12px;">ENTREGUE EM LOJA (Cliente trouxe o produto até a loja)</span>`
+      : `${sol.endereco.rua}, ${sol.endereco.numero} - ${sol.endereco.bairro}, ${sol.endereco.cidade}/${sol.endereco.estado} - CEP: ${sol.endereco.cep} ${sol.endereco.complemento ? `(${sol.endereco.complemento})` : ""}`;
+
+    const mostrarCanhoto = sol.tipo === "DEV" || sol.tipo === "TRC";
+
+    document.getElementById("detalhe-corpo").innerHTML = `
+      <p><strong>Loja:</strong> ${sol.loja || "Não informada"} | <strong>Data:</strong> ${sol.dataSolicitacao}</p>
+      <p><strong>Solicitante:</strong> ${sol.solicitante} | <strong>Pedido:</strong> #${sol.numeroPedido}</p>
+      ${estornoVinc ? `<p><strong>Estorno Vinculado:</strong> <span class="badge-vinculada-est">${estornoVinc.protocolo} (${estornoVinc.status}) — DEV bloqueada</span></p>` : ""}
+      <p><strong>Motivo:</strong> ${sol.motivo}</p>
+      ${sol.observacao ? `<p><strong>Observação:</strong> ${sol.observacao}</p>` : ""}
+      ${blocoCancelamentoHTML}
+      <hr style="margin: 12px 0; border: none; border-top: 1px solid #eee;">
+      <p><strong>Cliente:</strong> ${sol.cliente.nome} (CPF: ${sol.cliente.cpf})</p>
+      <p><strong>Telefone:</strong> ${sol.cliente.telefone}</p>
+      <p><strong>Coleta / Entrega:</strong> ${enderecoDetalhesHTML}</p>
+      <hr style="margin: 12px 0; border: none; border-top: 1px solid #eee;">
+      <p><strong>${tituloLista}</strong></p>
+      ${listaProdutosHTML}
+    `;
+
+    botoesModal.innerHTML = `
+      ${
+        mostrarCanhoto
+          ? `<button type="button" class="btn-azul" onclick="document.getElementById('modal-detalhes').close(); imprimirCanhotoColeta('${sol.protocolo}')">
+              Imprimir Canhoto (2 Vias)
+            </button>`
+          : ""
+      }
+      <button type="button" class="btn-cancelar" onclick="document.getElementById('modal-detalhes').close()">
+        Fechar
+      </button>
+    `;
+  }
 
   document.getElementById("modal-detalhes").showModal();
 }
@@ -1455,15 +2089,60 @@ function enviarWhatsApp(protocolo) {
   if (indice === -1) return;
 
   const sol = cacheSolicitacoes[indice];
-  const isTroca = sol.tipo === "TRC";
-  const temItensIndividuais = sol.produtos && sol.produtos.length > 0;
-  const isCompraInteira = Boolean(sol.compraInteira) && !temItensIndividuais;
 
   let telefoneLimpo = sol.cliente.telefone.replace(/\D/g, "");
   if (!telefoneLimpo.startsWith("55")) {
     telefoneLimpo = "55" + telefoneLimpo;
   }
 
+  if (sol.tipo === "EST") {
+    const valorEstornar = sol.valorDevolvido || sol.valorEstorno || "R$ 0,00";
+    const msgEstorno =
+      sol.status === "Concluída"
+        ? `Olá, ${sol.cliente.nome}! Aqui é do Bigmais em Casa!
+
+O estorno referente ao pedido #${sol.numeroPedido} (Protocolo: ${sol.protocolo}) no valor de ${valorEstornar} foi concluído pelo nosso setor financeiro.
+
+Qualquer dúvida, estamos à disposição para te ajudar!
+
+Bigmais em Casa, é diferente!`
+        : `Olá, ${sol.cliente.nome}! Aqui é do Bigmais em Casa!
+
+Sua solicitação de estorno referente ao pedido #${sol.numeroPedido} foi registrada com sucesso.
+
+Protocolo: ${sol.protocolo}
+Valor: ${valorEstornar}
+
+Nossa equipe já encaminhou os dados para o setor financeiro. Qualquer dúvida, estamos à disposição para te ajudar!
+
+Bigmais em Casa, é diferente!`;
+
+    window.open(
+      `https://wa.me/${telefoneLimpo}?text=${encodeURIComponent(msgEstorno)}`,
+      "_blank"
+    );
+
+    if (!sol.whatsappEnviado) {
+      cacheSolicitacoes[indice].whatsappEnviado = true;
+      renderizarTabela();
+
+      fetch(URL_API_PLANILHA, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          acao: "marcarWhatsApp",
+          protocolo: protocolo,
+        }),
+      }).catch((err) =>
+        console.error("Erro ao marcar WhatsApp na planilha:", err)
+      );
+    }
+    return;
+  }
+
+  const isTroca = sol.tipo === "TRC";
+  const temItensIndividuais = sol.produtos && sol.produtos.length > 0;
+  const isCompraInteira = Boolean(sol.compraInteira) && !temItensIndividuais;
   let mensagemWhatsApp = "";
 
   if (sol.status === "Concluída") {
@@ -1549,13 +2228,10 @@ Bigmais em Casa, é diferente!`;
         acao: "marcarWhatsApp",
         protocolo: protocolo,
       }),
-    }).catch((err) => console.error("Erro ao marcar WhatsApp na planilha:", err));
+    }).catch((err) =>
+      console.error("Erro ao marcar WhatsApp na planilha:", err)
+    );
   }
 }
 
 carregarSolicitacoesDaPlanilha();
-
-const badgeVersao = document.getElementById("badge-versao-portal");
-if (badgeVersao && typeof VERSAO_PORTAL !== "undefined") {
-  badgeVersao.textContent = VERSAO_PORTAL;
-}

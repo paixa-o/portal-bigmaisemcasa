@@ -14,11 +14,13 @@
   <body>
     <header class="cabecalho-portal">
       <div class="marca-portal">
-        <img
-          src="global/logo-bigmais.png"
-          alt="Logo Bigmais em Casa"
-          class="logo-portal"
-        />
+        <div class="logo-wrapper">
+          <img
+            src="global/logo-bigmais.png"
+            alt="Logo Bigmais em Casa"
+            class="logo-portal"
+          />
+        </div>
         <div>
           <h1>Portal Bigmais em Casa</h1>
           <span>Central de Solicitações de Devolução (DEV), Troca (TRC) e Estorno (EST)</span>
@@ -58,13 +60,9 @@
         <a href="devolucao/index.html" class="btn-cabecalho-primario">
           + Nova Devolução / Troca
         </a>
-        <button
-          type="button"
-          class="btn-cabecalho-secundario"
-          onclick="alert('O módulo de Estorno (EST) será integrado em breve!')"
-        >
+        <a href="estorno/index.html" class="btn-cabecalho-secundario">
           + Novo Estorno (EST)
-        </button>
+        </a>
       </div>
     </header>
 
@@ -98,7 +96,7 @@
           <input
             type="text"
             id="filtro-busca"
-            placeholder="Protocolo (ex: 0001 ou 2611230001), Nº Pedido, Cliente ou CPF..."
+            placeholder="Protocolo (ex: 0001), Nº Pedido, Cliente ou CPF..."
             oninput="renderizarTabela()"
           />
         </div>
@@ -127,6 +125,7 @@
           <select id="filtro-status" onchange="renderizarTabela()">
             <option value="TODOS">Todos os Status</option>
             <option value="Em andamento">Em andamento</option>
+            <option value="Aguardando Financeiro">Aguardando Financeiro</option>
             <option value="Concluída">Concluída</option>
             <option value="Cancelada">Cancelada</option>
           </select>
@@ -143,7 +142,7 @@
               <th>Data / Hora</th>
               <th>Cliente</th>
               <th>Pedido</th>
-              <th>Itens</th>
+              <th>Itens / Valor</th>
               <th>Status</th>
               <th style="text-align: right;">Ações</th>
             </tr>
@@ -170,7 +169,7 @@
       </div>
     </dialog>
 
-    <!-- MODAL DE EDIÇÃO DA SOLICITAÇÃO -->
+    <!-- MODAL DE EDIÇÃO DA SOLICITAÇÃO (DEV / TRC) -->
     <dialog id="modal-edicao" class="modal-caixa" style="max-width: 820px">
       <div class="modal-conteudo">
         <h3 id="edicao-titulo" style="color: #1976d2; margin-bottom: 5px">
@@ -376,6 +375,131 @@
       </div>
     </dialog>
 
+    <!-- MODAL DE EDIÇÃO DE ESTORNO (EST NÃO FINALIZADO) -->
+    <dialog id="modal-edicao-estorno" class="modal-caixa" style="max-width: 820px">
+      <div class="modal-conteudo">
+        <h3 id="edit-est-titulo" style="color: #0284c7; margin-bottom: 5px">
+          Editar Solicitação de Estorno
+        </h3>
+        <p style="font-size: 13px; color: #555; margin-bottom: 15px">
+          Atualize os dados ou troque a Devolução Concluída (DEV) vinculada antes da conclusão.
+        </p>
+
+        <div class="linha-campo">
+          <div class="campo">
+            <label for="edit-est-loja" class="obrigatorio">Loja:</label>
+            <select id="edit-est-loja">
+              <option value="Loja 8 - Vila Isa">Loja 8 - Vila Isa</option>
+              <option value="Loja 9 - São Pedro">Loja 9 - São Pedro</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label for="edit-est-solicitante" class="obrigatorio">Solicitante:</label>
+            <input type="text" id="edit-est-solicitante" />
+          </div>
+          <div class="campo" style="grid-column: span 2">
+            <label for="edit-est-dev-select" class="obrigatorio">Devolução Concluída Vinculada (DEV):</label>
+            <select id="edit-est-dev-select" onchange="aoTrocarDevNaEdicaoEstorno()">
+              <option value="">-- Selecione a DEV concluída --</option>
+            </select>
+            <small style="color: #64748b; font-size: 11.5px; margin-top: -10px; margin-bottom: 8px;">
+              Ao selecionar outra DEV, os dados abaixo serão limpos e recarregados da nova devolução.
+            </small>
+          </div>
+        </div>
+
+        <hr style="margin: 10px 0 14px; border: none; border-top: 1px solid #eee;" />
+        <strong style="font-size: 13px; color: #0284c7; display: block; margin-bottom: 8px;">Dados do Cliente</strong>
+        <div class="linha-campo">
+          <div class="campo" style="grid-column: span 2">
+            <label for="edit-est-nome" class="obrigatorio">Nome do Cliente:</label>
+            <input type="text" id="edit-est-nome" />
+          </div>
+          <div class="campo">
+            <label for="edit-est-cpf" class="obrigatorio">CPF do Cliente:</label>
+            <input type="text" id="edit-est-cpf" oninput="mascaraCPFPainel(this)" />
+          </div>
+          <div class="campo">
+            <label for="edit-est-seq" class="obrigatorio">Sequência Cliente (SEQ):</label>
+            <input type="text" id="edit-est-seq" oninput="this.value = this.value.replace(/\D/g, '')" />
+          </div>
+          <div class="campo">
+            <label for="edit-est-telefone" class="obrigatorio">Telefone (WhatsApp):</label>
+            <input type="text" id="edit-est-telefone" oninput="mascaraTelefonePainel(this)" />
+          </div>
+        </div>
+
+        <hr style="margin: 10px 0 14px; border: none; border-top: 1px solid #eee;" />
+        <strong style="font-size: 13px; color: #0284c7; display: block; margin-bottom: 8px;">Dados Fiscais e Financeiros</strong>
+        <div class="linha-campo">
+          <div class="campo">
+            <label for="edit-est-pedido" class="obrigatorio">Número do Pedido:</label>
+            <input type="text" id="edit-est-pedido" />
+          </div>
+          <div class="campo">
+            <label for="edit-est-nf-pedido" class="obrigatorio">Nota Fiscal do Pedido (Nº):</label>
+            <input type="text" id="edit-est-nf-pedido" oninput="this.value = this.value.replace(/\D/g, '')" />
+          </div>
+          <div class="campo">
+            <label for="edit-est-nf-dev" class="obrigatorio">Nota Fiscal da Devolução:</label>
+            <input type="text" id="edit-est-nf-dev" oninput="this.value = this.value.replace(/\D/g, '')" />
+          </div>
+        </div>
+
+        <div class="linha-campo">
+          <div class="campo">
+            <label for="edit-est-valor-pedido" class="obrigatorio">Valor do Pedido (R$):</label>
+            <input type="text" id="edit-est-valor-pedido" oninput="mascaraMoedaPainel(this)" />
+          </div>
+          <div class="campo">
+            <label for="edit-est-valor-devolvido" class="obrigatorio">Valor Devolvido (R$):</label>
+            <input type="text" id="edit-est-valor-devolvido" oninput="mascaraMoedaPainel(this)" />
+          </div>
+          <div class="campo">
+            <label for="edit-est-pagamento" class="obrigatorio">Forma de Pagamento:</label>
+            <select id="edit-est-pagamento">
+              <option value="Crédito">Crédito</option>
+              <option value="PIX">PIX</option>
+              <option value="PicPay">PicPay</option>
+              <option value="POS (Alimentação/Refeição)">POS (Alimentação/Refeição)</option>
+            </select>
+          </div>
+        </div>
+
+        <hr style="margin: 10px 0 14px; border: none; border-top: 1px solid #eee;" />
+        <strong style="font-size: 13px; color: #0284c7; display: block; margin-bottom: 8px;">Motivo e Observação</strong>
+        <div class="linha-campo">
+          <div class="campo">
+            <label for="edit-est-motivo" class="obrigatorio">Motivo da Solicitação:</label>
+            <input type="text" id="edit-est-motivo" />
+          </div>
+          <div class="campo" style="grid-column: span 2">
+            <label for="edit-est-observacao">Detalhes / Observação:</label>
+            <input type="text" id="edit-est-observacao" />
+          </div>
+        </div>
+
+        <div class="modal-botoes">
+          <button
+            type="button"
+            class="btn-cancelar"
+            onclick="document.getElementById('modal-edicao-estorno').close()"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="btn-salvar-principal"
+            id="btn-salvar-edicao-estorno"
+            style="padding: 9px 18px; font-size: 14px"
+            onclick="salvarEdicaoEstorno()"
+          >
+            Salvar Alterações
+          </button>
+        </div>
+      </div>
+    </dialog>
+
     <!-- MODAL DE CONFERÊNCIA DE ITENS RECEBIDOS -->
     <dialog id="modal-conferencia" class="modal-caixa" style="max-width: 720px">
       <div class="modal-conteudo">
@@ -560,8 +684,66 @@
       </div>
     </dialog>
 
+    <!-- MODAL E-MAIL FINANCEIRO (ESTORNO) -->
+    <dialog id="modal-email-estorno" class="modal-caixa" style="max-width: 700px">
+      <div class="modal-conteudo">
+        <h3 style="color: #0284c7; margin-bottom: 6px">
+          E-mail para o Setor Financeiro
+        </h3>
+        <p style="font-size: 13px; color: #555; margin-bottom: 12px">
+          Copie o assunto e o corpo abaixo para enviar ao setor financeiro.
+        </p>
+        <div class="campo">
+          <label for="painel-email-assunto">Assunto:</label>
+          <input
+            type="text"
+            id="painel-email-assunto"
+            readonly
+            class="campo-automatico"
+            style="margin-bottom: 10px"
+          />
+        </div>
+        <div class="campo">
+          <label for="painel-email-corpo">Mensagem:</label>
+          <textarea
+            id="painel-email-corpo"
+            rows="16"
+            readonly
+            style="
+              background-color: #f8fafc;
+              font-family: monospace;
+              font-size: 12.5px;
+              line-height: 1.45;
+            "
+          ></textarea>
+        </div>
+        <div class="modal-botoes">
+          <button
+            type="button"
+            class="btn-azul"
+            id="btn-copiar-email-painel"
+            onclick="copiarEmailPainel()"
+          >
+            Copiar Assunto e E-mail
+          </button>
+          <button
+            type="button"
+            class="btn-cancelar"
+            onclick="document.getElementById('modal-email-estorno').close()"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
+    </dialog>
+
     <!-- ÁREA OCULTA PARA IMPRESSÃO DO CANHOTO EM 2 VIAS (A4 RETRATO) -->
     <div id="area-impressao-canhoto"></div>
+
+    <footer class="rodape-portal">
+      <span>Portal Bigmais em Casa</span>
+      <span id="versao-sistema"></span>
+    </footer>
 
     <script src="global/config.js"></script>
     <script src="global/painel.js"></script>
