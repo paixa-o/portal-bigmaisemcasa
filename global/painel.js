@@ -1554,3 +1554,8 @@ Bigmais em Casa, é diferente!`;
 }
 
 carregarSolicitacoesDaPlanilha();
+
+const badgeVersao = document.getElementById("badge-versao-portal");
+if (badgeVersao && typeof VERSAO_PORTAL !== "undefined") {
+  badgeVersao.textContent = VERSAO_PORTAL;
+}
