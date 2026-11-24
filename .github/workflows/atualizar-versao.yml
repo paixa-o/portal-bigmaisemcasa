@@ -1,0 +1,64 @@
+name: Atualizar Versão do Portal
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar código do repositório
+        uses: actions/checkout@v4
+
+      - name: Calcular e aplicar nova versão
+        run: |
+          MSG_COMMIT="${{ github.event.head_commit.message }}"
+          
+          # Ignora se o commit foi feito pelo próprio robô para evitar loop
+          if [[ "$MSG_COMMIT" == *"[skip ci]"* ]]; then
+            echo "Commit automático detectado. Ignorando."
+            exit 0
+          fi
+
+          # Verifica se você escreveu uma versão na mensagem do commit (ex: v1.5.0)
+          NOVA_VERSAO=$(echo "$MSG_COMMIT" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)
+
+          # Se você não escreveu nenhuma versão no commit, incrementa o PATCH automaticamente
+          if [ -z "$NOVA_VERSAO" ]; then
+            VERSAO_ATUAL=$(grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' global/config.js | head -n 1)
+            if [ -z "$VERSAO_ATUAL" ]; then
+              NOVA_VERSAO="v1.0.0"
+            else
+              MAJOR=$(echo "$VERSAO_ATUAL" | sed -E 's/v([0-9]+)\.([0-9]+)\.([0-9]+)/\1/')
+              MINOR=$(echo "$VERSAO_ATUAL" | sed -E 's/v([0-9]+)\.([0-9]+)\.([0-9]+)/\2/')
+              PATCH=$(echo "$VERSAO_ATUAL" | sed -E 's/v([0-9]+)\.([0-9]+)\.([0-9]+)/\3/')
+              NOVO_PATCH=$((PATCH + 1))
+              NOVA_VERSAO="v${MAJOR}.${MINOR}.${NOVO_PATCH}"
+            fi
+          fi
+
+          echo "Aplicando versão: $NOVA_VERSAO"
+
+          # Atualiza global/config.js e sw.js
+          sed -i -E "s/const VERSAO_PORTAL = \"v[0-9]+\.[0-9]+\.[0-9]+\";/const VERSAO_PORTAL = \"${NOVA_VERSAO}\";/" global/config.js
+          sed -i -E "s/const CACHE_NAME = \"bigmais-em-casa-v[0-9]+\.[0-9]+\.[0-9]+\";/const CACHE_NAME = \"bigmais-em-casa-${NOVA_VERSAO}\";/" sw.js
+
+      - name: Salvar versão atualizada no repositório
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          if [[ -n $(git status -s) ]]; then
+            VERSAO_APLICADA=$(grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' global/config.js | head -n 1)
+            git add global/config.js sw.js
+            git commit -m "chore: atualiza versao para ${VERSAO_APLICADA} [skip ci]"
+            git push
+          else
+            echo "Nenhuma alteração de versão necessária."
+          fi

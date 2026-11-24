@@ -1,6 +1,7 @@
 let cacheSolicitacoes = [];
 let protocoloEmConferencia = null;
 let itensEmConferencia = [];
+let compraInteiraEmConferencia = false;
 let protocoloEmCancelamento = null;
 let ultimoCodigoConferencia = "";
 
@@ -8,6 +9,11 @@ let ultimoCodigoConferencia = "";
 let protocoloEmEdicao = null;
 let itensEmEdicao = [];
 let ultimoCodigoEdicao = "";
+
+const elVersao = document.getElementById("versao-sistema");
+if (elVersao && typeof VERSAO_PORTAL !== "undefined") {
+  elVersao.textContent = `Versão ${VERSAO_PORTAL}`;
+}
 
 // Fecha qualquer menu de três pontinhos aberto ao clicar fora, rolar ou redimensionar
 document.addEventListener("click", (event) => {
@@ -180,6 +186,10 @@ function renderizarTabela() {
             : "badge-tipo-est";
 
       const qtdItens = sol.produtos ? sol.produtos.length : 0;
+      const textoColunaItens =
+        sol.compraInteira && qtdItens === 0
+          ? `<span class="badge-compra-inteira">Compra Inteira</span>`
+          : `${qtdItens} ${qtdItens === 1 ? "item" : "itens"}`;
 
       const isConcluida = sol.status === "Concluída";
       const textoWppMenu = isConcluida
@@ -193,9 +203,8 @@ function renderizarTabela() {
           ? "item-wpp-enviado"
           : "item-wpp";
 
-      // Exibe botão Canhoto para Troca (sempre) ou Devolução (quando não for Entregue em Loja)
-      const mostrarBotaoCanhoto =
-        sol.tipo === "TRC" || (sol.tipo === "DEV" && !sol.entregueEmLoja);
+      // Exibe botão Canhoto para toda Devolução (DEV) e Troca (TRC), inclusive Entregue em Loja
+      const mostrarBotaoCanhoto = sol.tipo === "DEV" || sol.tipo === "TRC";
 
       tbody.innerHTML += `
         <tr>
@@ -211,7 +220,7 @@ function renderizarTabela() {
             <small style="color: #666;">${sol.cliente.telefone}</small>
           </td>
           <td>#${sol.numeroPedido}</td>
-          <td>${qtdItens} ${qtdItens === 1 ? "item" : "itens"}</td>
+          <td>${textoColunaItens}</td>
           <td><span class="badge ${classeBadgeStatus}">${sol.status}</span></td>
           <td>
             <div class="acoes-linha">
@@ -273,21 +282,59 @@ function renderizarTabela() {
 // =========================================================================
 
 function montarHTMLViaCanhoto(sol, rotuloVia, tituloDocumento, termoRodape, classeExtra) {
-  const linhasItensHTML = (sol.produtos || [])
-    .map((item) => {
-      const unidadeTexto = item.unidade === "Un" ? "" : ` ${item.unidade}`;
-      return `
-        <tr>
-          <td style="text-align: center; width: 26px; font-size: 13px;">☐</td>
-          <td style="width: 62px;">${item.sku || "-"}</td>
-          <td style="width: 98px;">${item.ean || "-"}</td>
-          <td style="font-weight: 700;">${item.descricao}</td>
-          <td style="text-align: center; width: 72px; font-weight: 800;">${item.quantidade}${unidadeTexto}</td>
-          <td style="text-align: center; width: 76px;"></td>
-        </tr>
-      `;
-    })
-    .join("");
+  const temItensIndividuais = sol.produtos && sol.produtos.length > 0;
+  const isCompraInteira = Boolean(sol.compraInteira) && !temItensIndividuais;
+  const isTroca = sol.tipo === "TRC";
+
+  let conteudoProdutosHTML = "";
+
+  if (isCompraInteira) {
+    const tipoOperacaoTexto = isTroca ? "TROCA TOTAL" : "DEVOLUÇÃO TOTAL";
+    conteudoProdutosHTML = `
+      <div class="canhoto-box-compra-inteira">
+        <div class="canhoto-compra-inteira-titulo">
+          ☑ ${tipoOperacaoTexto} — COMPRA INTEIRA (PEDIDO #${sol.numeroPedido})
+        </div>
+        <div class="canhoto-compra-inteira-desc">
+          Refere-se à devolução/troca integral de todos os itens constantes no pedido <strong>#${sol.numeroPedido}</strong>, dispensando a discriminação item a item. Conferir volumes e itens conforme cupom/nota do pedido.
+        </div>
+      </div>
+    `;
+  } else {
+    const linhasItensHTML = (sol.produtos || [])
+      .map((item) => {
+        const unidadeTexto = item.unidade === "Un" ? "" : ` ${item.unidade}`;
+        return `
+          <tr>
+            <td style="text-align: center; width: 26px; font-size: 13px;">☐</td>
+            <td style="width: 62px;">${item.sku || "-"}</td>
+            <td style="width: 98px;">${item.ean || "-"}</td>
+            <td style="font-weight: 700;">${item.descricao}</td>
+            <td style="text-align: center; width: 72px; font-weight: 800;">${item.quantidade}${unidadeTexto}</td>
+            <td style="text-align: center; width: 76px;"></td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    conteudoProdutosHTML = `
+      <table class="canhoto-tabela">
+        <thead>
+          <tr>
+            <th style="text-align: center; width: 26px;">OK</th>
+            <th style="width: 62px;">SKU</th>
+            <th style="width: 98px;">EAN</th>
+            <th>Descrição do Produto</th>
+            <th style="text-align: center; width: 72px;">Qtd. Solic.</th>
+            <th style="text-align: center; width: 76px;">Qtd. Conf.</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${linhasItensHTML}
+        </tbody>
+      </table>
+    `;
+  }
 
   const enderecoCompleto = sol.entregueEmLoja
     ? "ENTREGUE EM LOJA (Cliente trouxe o produto presencialmente)"
@@ -300,7 +347,11 @@ function montarHTMLViaCanhoto(sol, rotuloVia, tituloDocumento, termoRodape, clas
     : "Endereço de Coleta & Motivo";
 
   const labelEndereco = sol.entregueEmLoja ? "Local:" : "Endereço:";
-  const labelDataOperacao = sol.entregueEmLoja ? "Data/Hora da Troca:" : "Data/Hora da Coleta:";
+  const labelDataOperacao = sol.entregueEmLoja
+    ? isTroca
+      ? "Data/Hora da Troca:"
+      : "Data/Hora da Entrega:"
+    : "Data/Hora da Coleta:";
 
   return `
     <div class="canhoto-via ${classeExtra}">
@@ -340,21 +391,7 @@ function montarHTMLViaCanhoto(sol, rotuloVia, tituloDocumento, termoRodape, clas
           </div>
         </div>
 
-        <table class="canhoto-tabela">
-          <thead>
-            <tr>
-              <th style="text-align: center; width: 26px;">OK</th>
-              <th style="width: 62px;">SKU</th>
-              <th style="width: 98px;">EAN</th>
-              <th>Descrição do Produto</th>
-              <th style="text-align: center; width: 72px;">Qtd. Solic.</th>
-              <th style="text-align: center; width: 76px;">Qtd. Conf.</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${linhasItensHTML}
-          </tbody>
-        </table>
+        ${conteudoProdutosHTML}
       </div>
 
       <div class="canhoto-rodape">
@@ -377,22 +414,27 @@ function imprimirCanhotoColeta(protocolo) {
   if (!sol) return;
 
   const isTroca = sol.tipo === "TRC";
+  const naLoja = Boolean(sol.entregueEmLoja);
 
   const via1HTML = isTroca
     ? montarHTMLViaCanhoto(
         sol,
-        sol.entregueEmLoja ? "1ª VIA — EMPRESA / LOJA" : "1ª VIA — EMPRESA / MOTORISTA",
+        naLoja ? "1ª VIA — EMPRESA / LOJA" : "1ª VIA — EMPRESA / MOTORISTA",
         "BIGMAIS EM CASA — CANHOTO DE TROCA",
-        sol.entregueEmLoja
+        naLoja
           ? "Declaro que os itens conferidos acima foram trocados presencialmente na unidade do Bigmais em Casa."
           : "Declaro que os itens conferidos acima foram trocados/recolhidos pelo motorista do Bigmais em Casa.",
         "canhoto-via-superior"
       )
     : montarHTMLViaCanhoto(
         sol,
-        "1ª VIA — EMPRESA / MOTORISTA",
-        "BIGMAIS EM CASA — CANHOTO DE RECOLHIMENTO",
-        "Declaro que os itens conferidos acima foram recolhidos/entregues para devolução ao Bigmais em Casa.",
+        naLoja ? "1ª VIA — EMPRESA / LOJA" : "1ª VIA — EMPRESA / MOTORISTA",
+        naLoja
+          ? "BIGMAIS EM CASA — COMPROVANTE DE DEVOLUÇÃO EM LOJA"
+          : "BIGMAIS EM CASA — CANHOTO DE RECOLHIMENTO",
+        naLoja
+          ? "Declaro que os itens referentes a esta solicitação foram entregues presencialmente pelo cliente na unidade do Bigmais em Casa."
+          : "Declaro que os itens conferidos acima foram recolhidos/entregues para devolução ao Bigmais em Casa.",
         "canhoto-via-superior"
       );
 
@@ -407,8 +449,12 @@ function imprimirCanhotoColeta(protocolo) {
     : montarHTMLViaCanhoto(
         sol,
         "2ª VIA — CLIENTE (COMPROVANTE DE DEVOLUÇÃO)",
-        "BIGMAIS EM CASA — COMPROVANTE DE RECOLHIMENTO",
-        "Comprovante do cliente referente aos itens recolhidos para devolução ao Bigmais em Casa.",
+        naLoja
+          ? "BIGMAIS EM CASA — COMPROVANTE DE DEVOLUÇÃO"
+          : "BIGMAIS EM CASA — COMPROVANTE DE RECOLHIMENTO",
+        naLoja
+          ? "Comprovante do cliente referente aos itens entregues para devolução na unidade do Bigmais em Casa."
+          : "Comprovante do cliente referente aos itens recolhidos para devolução ao Bigmais em Casa.",
         ""
       );
 
@@ -501,6 +547,20 @@ function alternarEntregueEmLojaEdicao() {
   }
 }
 
+function alternarCompraInteiraEdicao() {
+  const compraInteira = document.getElementById("edit-compra-inteira").checked;
+  const aviso = document.getElementById("edit-aviso-compra-inteira");
+  const blocoProdutos = document.getElementById("edit-bloco-produtos");
+
+  if (compraInteira) {
+    aviso.style.display = "block";
+    blocoProdutos.style.display = "none";
+  } else {
+    aviso.style.display = "none";
+    blocoProdutos.style.display = "block";
+  }
+}
+
 function abrirModalEdicao(protocolo) {
   const sol = cacheSolicitacoes.find((s) => s.protocolo === protocolo);
   if (!sol) return;
@@ -540,6 +600,10 @@ function abrirModalEdicao(protocolo) {
   document.getElementById("edit-motivo").value = sol.motivo || "";
   document.getElementById("edit-observacao").value = sol.observacao || "";
 
+  const compraInteira = Boolean(sol.compraInteira);
+  document.getElementById("edit-compra-inteira").checked = compraInteira;
+  alternarCompraInteiraEdicao();
+
   document.getElementById("edit-prod-sku").value = "";
   document.getElementById("edit-prod-ean").value = "";
   document.getElementById("edit-prod-descricao").value = "";
@@ -555,7 +619,7 @@ function renderizarItensEdicao() {
 
   if (itensEmEdicao.length === 0) {
     container.innerHTML =
-      "<p style='color: #d32f2f; font-size: 13px; font-weight: 600;'>Nenhum item na solicitação. Adicione ao menos 1 produto abaixo.</p>";
+      "<p style='color: #d32f2f; font-size: 13px; font-weight: 600;'>Nenhum item na solicitação. Adicione ao menos 1 produto abaixo ou marque 'Compra Inteira'.</p>";
     return;
   }
 
@@ -766,6 +830,7 @@ async function salvarEdicaoSolicitacao() {
   const telefone = document.getElementById("edit-telefone").value.trim();
 
   const entregueEmLoja = document.getElementById("edit-entregue-loja").checked;
+  const compraInteira = document.getElementById("edit-compra-inteira").checked;
   const cep = document.getElementById("edit-cep").value.trim();
   const rua = document.getElementById("edit-rua").value.trim();
   const numero = document.getElementById("edit-numero").value.trim();
@@ -789,15 +854,17 @@ async function salvarEdicaoSolicitacao() {
     return;
   }
 
-  const temItemInvalido = itensEmEdicao.some(
-    (i) => !i.quantidade || i.quantidade === "0" || i.quantidade === "0,000"
-  );
-
-  if (itensEmEdicao.length === 0 || temItemInvalido) {
-    alert(
-      "A solicitação precisa ter ao menos 1 produto com quantidade maior que zero."
+  if (!compraInteira) {
+    const temItemInvalido = itensEmEdicao.some(
+      (i) => !i.quantidade || i.quantidade === "0" || i.quantidade === "0,000"
     );
-    return;
+
+    if (itensEmEdicao.length === 0 || temItemInvalido) {
+      alert(
+        "A solicitação precisa ter ao menos 1 produto com quantidade maior que zero ou estar marcada como 'Compra Inteira'."
+      );
+      return;
+    }
   }
 
   const botao = document.getElementById("btn-salvar-edicao");
@@ -812,6 +879,7 @@ async function salvarEdicaoSolicitacao() {
     motivo,
     observacao,
     entregueEmLoja,
+    compraInteira,
     cliente: { nome, cpf, telefone },
     endereco: entregueEmLoja
       ? {
@@ -824,7 +892,7 @@ async function salvarEdicaoSolicitacao() {
           complemento: "",
         }
       : { cep, rua, numero, bairro, cidade, estado, complemento },
-    produtos: [...itensEmEdicao],
+    produtos: compraInteira ? [] : [...itensEmEdicao],
   };
 
   try {
@@ -873,10 +941,16 @@ function abrirModalConferencia(protocolo) {
 
   protocoloEmConferencia = protocolo;
   itensEmConferencia = JSON.parse(JSON.stringify(sol.produtos || []));
+  compraInteiraEmConferencia = Boolean(sol.compraInteira);
   ultimoCodigoConferencia = "";
 
   document.getElementById("conferencia-titulo").textContent =
     `Conferência de Itens Recolhidos - ${protocolo}`;
+
+  document.getElementById("conferencia-subtitulo").textContent =
+    compraInteiraEmConferencia
+      ? "Esta solicitação está marcada como COMPRA INTEIRA. Você pode confirmar a conclusão diretamente ou incluir itens conferidos abaixo, se desejar."
+      : "Confirme as quantidades efetivamente recebidas, remova itens não recolhidos ou inclua novos itens antes de concluir.";
 
   document.getElementById("conf-sku").value = "";
   document.getElementById("conf-ean").value = "";
@@ -887,15 +961,22 @@ function abrirModalConferencia(protocolo) {
 
   renderizarItensConferencia();
   document.getElementById("modal-conferencia").showModal();
-  document.getElementById("conf-sku").focus();
+  if (!compraInteiraEmConferencia) {
+    document.getElementById("conf-sku").focus();
+  }
 }
 
 function renderizarItensConferencia() {
   const container = document.getElementById("lista-itens-conferencia");
 
   if (itensEmConferencia.length === 0) {
-    container.innerHTML =
-      "<p style='color: #d32f2f; font-size: 13px; font-weight: 600;'>Nenhum item na lista. Adicione ao menos 1 item recolhido abaixo.</p>";
+    if (compraInteiraEmConferencia) {
+      container.innerHTML =
+        "<div class='aviso-compra-inteira'><strong>Compra Inteira:</strong> Conferência total do pedido. Clique em <strong>Confirmar Recebimento e Concluir</strong> ou adicione itens avulsos abaixo se desejar discriminá-los.</div>";
+    } else {
+      container.innerHTML =
+        "<p style='color: #d32f2f; font-size: 13px; font-weight: 600;'>Nenhum item na lista. Adicione ao menos 1 item recolhido abaixo.</p>";
+    }
     return;
   }
 
@@ -1100,7 +1181,7 @@ async function confirmarConclusaoConferencia() {
     (i) => !i.quantidade || i.quantidade === "0" || i.quantidade === "0,000"
   );
 
-  if (itensEmConferencia.length === 0 || temItemInvalido) {
+  if ((!compraInteiraEmConferencia && itensEmConferencia.length === 0) || temItemInvalido) {
     alert(
       "Verifique os itens: é obrigatório ter ao menos 1 item com quantidade maior que zero."
     );
@@ -1137,7 +1218,7 @@ async function confirmarConclusaoConferencia() {
       renderizarTabela();
 
       alert(
-        `Solicitação ${protocoloEmConferencia} concluída com sucesso!\n\nA opção "WhatsApp Conclusão" no menu já está pronta com a lista final dos itens.`
+        `Solicitação ${protocoloEmConferencia} concluída com sucesso!\n\nA opção "WhatsApp Conclusão" no menu já está pronta.`
       );
     } else {
       alert("Erro ao concluir na planilha: " + resultado.erro);
@@ -1293,7 +1374,7 @@ async function reabrirSolicitacao(protocolo) {
 }
 
 // =========================================================================
-// DETALHES E WHATSAPP (DEVOLUÇÃO vs TROCA & ENTREGA EM LOJA)
+// DETALHES E WHATSAPP (DEVOLUÇÃO vs TROCA & ENTREGA EM LOJA & COMPRA INTEIRA)
 // =========================================================================
 
 function verDetalhes(protocolo) {
@@ -1304,12 +1385,19 @@ function verDetalhes(protocolo) {
   document.getElementById("detalhe-titulo").textContent =
     `${sol.protocolo} — ${tituloTipo} (${sol.status})`;
 
-  const listaProdutosHTML = sol.produtos
-    .map(
-      (p) =>
-        `<li><strong>${p.quantidade} ${p.unidade}</strong> x ${p.descricao} <small>(SKU: ${p.sku}${p.ean ? ` | EAN: ${p.ean}` : ""})</small></li>`
-    )
-    .join("");
+  const temItensIndividuais = sol.produtos && sol.produtos.length > 0;
+  const isCompraInteira = Boolean(sol.compraInteira) && !temItensIndividuais;
+
+  const listaProdutosHTML = isCompraInteira
+    ? `<div class="aviso-compra-inteira" style="margin-top: 6px;">
+         <strong>Compra Inteira:</strong> Devolução/troca integral de todos os itens do pedido <strong>#${sol.numeroPedido}</strong>.
+       </div>`
+    : `<ul style="margin-left: 20px; margin-top: 5px;">${sol.produtos
+        .map(
+          (p) =>
+            `<li><strong>${p.quantidade} ${p.unidade}</strong> x ${p.descricao} <small>(SKU: ${p.sku}${p.ean ? ` | EAN: ${p.ean}` : ""})</small></li>`
+        )
+        .join("")}</ul>`;
 
   const tituloLista =
     sol.status === "Concluída"
@@ -1328,8 +1416,7 @@ function verDetalhes(protocolo) {
     ? `<span class="badge-loja-entrega" style="font-size: 12px;">ENTREGUE EM LOJA (Cliente trouxe o produto até a loja)</span>`
     : `${sol.endereco.rua}, ${sol.endereco.numero} - ${sol.endereco.bairro}, ${sol.endereco.cidade}/${sol.endereco.estado} - CEP: ${sol.endereco.cep} ${sol.endereco.complemento ? `(${sol.endereco.complemento})` : ""}`;
 
-  const mostrarCanhoto =
-    sol.tipo === "TRC" || (sol.tipo === "DEV" && !sol.entregueEmLoja);
+  const mostrarCanhoto = sol.tipo === "DEV" || sol.tipo === "TRC";
 
   document.getElementById("detalhe-corpo").innerHTML = `
     <p><strong>Loja:</strong> ${sol.loja || "Não informada"} | <strong>Data:</strong> ${sol.dataSolicitacao}</p>
@@ -1343,7 +1430,7 @@ function verDetalhes(protocolo) {
     <p><strong>Coleta / Entrega:</strong> ${enderecoDetalhesHTML}</p>
     <hr style="margin: 12px 0; border: none; border-top: 1px solid #eee;">
     <p><strong>${tituloLista}</strong></p>
-    <ul style="margin-left: 20px; margin-top: 5px;">${listaProdutosHTML}</ul>
+    ${listaProdutosHTML}
   `;
 
   const botoesModal = document.getElementById("detalhe-botoes");
@@ -1369,6 +1456,8 @@ function enviarWhatsApp(protocolo) {
 
   const sol = cacheSolicitacoes[indice];
   const isTroca = sol.tipo === "TRC";
+  const temItensIndividuais = sol.produtos && sol.produtos.length > 0;
+  const isCompraInteira = Boolean(sol.compraInteira) && !temItensIndividuais;
 
   let telefoneLimpo = sol.cliente.telefone.replace(/\D/g, "");
   if (!telefoneLimpo.startsWith("55")) {
@@ -1378,15 +1467,16 @@ function enviarWhatsApp(protocolo) {
   let mensagemWhatsApp = "";
 
   if (sol.status === "Concluída") {
-    const listaItensRecolhidos = sol.produtos
-      .map((item) => {
-        const unidadeTexto = item.unidade === "Un" ? "" : ` ${item.unidade}`;
-        return `${item.quantidade}${unidadeTexto} x ${item.descricao}`;
-      })
-      .join("\n");
+    const listaItensRecolhidos = isCompraInteira
+      ? `- Compra inteira (todos os itens do pedido #${sol.numeroPedido})`
+      : sol.produtos
+          .map((item) => {
+            const unidadeTexto = item.unidade === "Un" ? "" : ` ${item.unidade}`;
+            return `${item.quantidade}${unidadeTexto} x ${item.descricao}`;
+          })
+          .join("\n");
 
     if (isTroca) {
-      // TROCA CONCLUÍDA (Não menciona estorno)
       mensagemWhatsApp = `Olá, ${sol.cliente.nome}! Aqui é do Bigmais em Casa!
 
 Sua solicitação de troca referente ao pedido #${sol.numeroPedido} foi concluída com sucesso.
@@ -1401,7 +1491,6 @@ Qualquer dúvida, estamos à disposição para te ajudar!
 
 Bigmais em Casa, é diferente!`;
     } else {
-      // DEVOLUÇÃO CONCLUÍDA
       mensagemWhatsApp = `Olá, ${sol.cliente.nome}! Aqui é do Bigmais em Casa!
 
 Sua solicitação de devolução referente ao pedido #${sol.numeroPedido} foi efetuada com sucesso.
@@ -1417,13 +1506,14 @@ Entraremos em contato para darmos seguimento ao estorno do valor pago. Qualquer 
 Bigmais em Casa, é diferente!`;
     }
   } else {
-    // EM ANDAMENTO
-    const listaItensTexto = sol.produtos
-      .map((item) => {
-        const unidadeTexto = item.unidade === "Un" ? "" : ` ${item.unidade}`;
-        return `${item.quantidade}${unidadeTexto} x ${item.descricao} - ${item.sku}`;
-      })
-      .join("\n");
+    const listaItensTexto = isCompraInteira
+      ? `- Compra inteira (todos os itens do pedido #${sol.numeroPedido})`
+      : sol.produtos
+          .map((item) => {
+            const unidadeTexto = item.unidade === "Un" ? "" : ` ${item.unidade}`;
+            return `${item.quantidade}${unidadeTexto} x ${item.descricao} - ${item.sku}`;
+          })
+          .join("\n");
 
     const tipoTexto = isTroca ? "troca" : "devolução";
     const fraseLogistica = sol.entregueEmLoja

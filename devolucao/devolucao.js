@@ -39,6 +39,26 @@ function alterarModalidadeSolicitacao() {
   atualizarPrefixoProtocoloLocal();
 }
 
+function alternarCompraInteira() {
+  const compraInteira = document.getElementById("comprainteira").checked;
+  const btnAdicionar = document.getElementById("btn-abrir-modal-produto");
+  const aviso = document.getElementById("aviso-compra-inteira");
+  const lista = document.getElementById("lista-produtos-adicionados");
+  const tituloProdutos = document.getElementById("titulo-produtos-secao");
+
+  if (compraInteira) {
+    btnAdicionar.style.display = "none";
+    aviso.style.display = "block";
+    lista.style.display = "none";
+    tituloProdutos.classList.remove("obrigatorio");
+  } else {
+    btnAdicionar.style.display = "inline-block";
+    aviso.style.display = "none";
+    lista.style.display = "block";
+    tituloProdutos.classList.add("obrigatorio");
+  }
+}
+
 function alternarEntregueEmLoja() {
   const marcado = document.getElementById("entregueemloja").checked;
   const camposObrigatorios = [
@@ -463,6 +483,7 @@ function reiniciarTela() {
   document.getElementById("formDevolucao").reset();
   verificarOutroMotivo();
   alterarModalidadeSolicitacao();
+  alternarCompraInteira();
   alternarEntregueEmLoja();
 
   document.getElementById("cpfcliente").setCustomValidity("");
@@ -485,6 +506,11 @@ document.addEventListener("DOMContentLoaded", () => {
     formularioAlterado = true;
   });
 
+  const elVersao = document.getElementById("versao-sistema");
+if (elVersao && typeof VERSAO_PORTAL !== "undefined") {
+  elVersao.textContent = `Versão ${VERSAO_PORTAL}`;
+}
+
   form.addEventListener("submit", async function (evento) {
     evento.preventDefault();
 
@@ -492,8 +518,12 @@ document.addEventListener("DOMContentLoaded", () => {
       await inicializarDadosAutomaticos();
     }
 
-    if (produtosDaDevolucao.length === 0) {
-      alert("É obrigatório adicionar pelo menos 1 produto para registrar!");
+    const compraInteira = document.getElementById("comprainteira").checked;
+
+    if (!compraInteira && produtosDaDevolucao.length === 0) {
+      alert(
+        "É obrigatório adicionar pelo menos 1 produto ou marcar a opção 'Compra Inteira'!"
+      );
       abrirModalProduto();
       return;
     }
@@ -525,6 +555,7 @@ document.addEventListener("DOMContentLoaded", () => {
       status: "Em andamento",
       whatsappEnviado: false,
       entregueEmLoja: entregueEmLoja,
+      compraInteira: compraInteira,
       dataSolicitacao: document.getElementById("datasolicitacao").value,
       loja: document.getElementById("loja").value,
       solicitante: document.getElementById("solicitante").value.trim(),
@@ -555,7 +586,7 @@ document.addEventListener("DOMContentLoaded", () => {
             estado: document.getElementById("estadocliente").value.trim(),
             complemento: document.getElementById("complementocliente").value.trim(),
           },
-      produtos: [...produtosDaDevolucao],
+      produtos: compraInteira ? [] : [...produtosDaDevolucao],
     };
 
     try {

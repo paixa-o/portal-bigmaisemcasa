@@ -270,70 +270,83 @@
         </div>
 
         <hr style="margin: 10px 0 14px; border: none; border-top: 1px solid #eee;" />
-        <strong style="font-size: 13px; color: #d32f2f; display: block; margin-bottom: 8px;">Produtos da Solicitação</strong>
-        <div id="lista-itens-edicao" style="margin-bottom: 12px"></div>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
+          <strong style="font-size: 13px; color: #d32f2f;">Produtos da Solicitação</strong>
+          <label class="checkbox-compra-inteira-box" style="margin-bottom: 0; padding: 6px 12px;">
+            <input type="checkbox" id="edit-compra-inteira" onchange="alternarCompraInteiraEdicao()" />
+            <span>Compra Inteira (devolução/troca total do pedido)</span>
+          </label>
+        </div>
 
-        <div style="background: #f8fafc; border: 1px solid #dce1e7; padding: 12px; border-radius: 6px;">
-          <strong style="font-size: 13px; display: block; margin-bottom: 8px">+ Incluir Produto</strong>
-          <div class="linha-campo" style="gap: 10px">
-            <div class="campo">
-              <input
-                type="text"
-                id="edit-prod-sku"
-                placeholder="SKU *"
-                style="margin-bottom: 5px"
-                oninput="aoDigitarCodigoEdicao('SKU', this)"
-                onblur="buscarProdutoEdicao('SKU')"
-                onkeydown="if(event.key === 'Enter'){ event.preventDefault(); buscarProdutoEdicao('SKU'); }"
-              />
+        <div id="edit-aviso-compra-inteira" class="aviso-compra-inteira" style="display: none; margin-bottom: 12px;">
+          <strong>Compra Inteira selecionada:</strong> Todos os itens do pedido serão devolvidos/trocados integralmente.
+        </div>
+
+        <div id="edit-bloco-produtos">
+          <div id="lista-itens-edicao" style="margin-bottom: 12px"></div>
+
+          <div style="background: #f8fafc; border: 1px solid #dce1e7; padding: 12px; border-radius: 6px;">
+            <strong style="font-size: 13px; display: block; margin-bottom: 8px">+ Incluir Produto</strong>
+            <div class="linha-campo" style="gap: 10px">
+              <div class="campo">
+                <input
+                  type="text"
+                  id="edit-prod-sku"
+                  placeholder="SKU *"
+                  style="margin-bottom: 5px"
+                  oninput="aoDigitarCodigoEdicao('SKU', this)"
+                  onblur="buscarProdutoEdicao('SKU')"
+                  onkeydown="if(event.key === 'Enter'){ event.preventDefault(); buscarProdutoEdicao('SKU'); }"
+                />
+              </div>
+              <div class="campo">
+                <input
+                  type="text"
+                  id="edit-prod-ean"
+                  placeholder="EAN"
+                  style="margin-bottom: 5px"
+                  oninput="aoDigitarCodigoEdicao('EAN', this)"
+                  onblur="buscarProdutoEdicao('EAN')"
+                  onkeydown="if(event.key === 'Enter'){ event.preventDefault(); buscarProdutoEdicao('EAN'); }"
+                />
+              </div>
+              <div class="campo" style="grid-column: span 2">
+                <input
+                  type="text"
+                  id="edit-prod-descricao"
+                  placeholder="Descrição do produto *"
+                  style="margin-bottom: 5px"
+                />
+              </div>
+              <div class="campo">
+                <select
+                  id="edit-prod-unidade"
+                  style="margin-bottom: 5px"
+                  onchange="mudarUnidadeEdicao()"
+                >
+                  <option value="Un">Un</option>
+                  <option value="Kg">Kg</option>
+                </select>
+              </div>
+              <div class="campo">
+                <input
+                  type="text"
+                  id="edit-prod-quantidade"
+                  placeholder="Qtd *"
+                  style="margin-bottom: 5px"
+                  oninput="formatarQuantidadeEdicao()"
+                />
+              </div>
             </div>
-            <div class="campo">
-              <input
-                type="text"
-                id="edit-prod-ean"
-                placeholder="EAN"
-                style="margin-bottom: 5px"
-                oninput="aoDigitarCodigoEdicao('EAN', this)"
-                onblur="buscarProdutoEdicao('EAN')"
-                onkeydown="if(event.key === 'Enter'){ event.preventDefault(); buscarProdutoEdicao('EAN'); }"
-              />
-            </div>
-            <div class="campo" style="grid-column: span 2">
-              <input
-                type="text"
-                id="edit-prod-descricao"
-                placeholder="Descrição do produto *"
-                style="margin-bottom: 5px"
-              />
-            </div>
-            <div class="campo">
-              <select
-                id="edit-prod-unidade"
-                style="margin-bottom: 5px"
-                onchange="mudarUnidadeEdicao()"
-              >
-                <option value="Un">Un</option>
-                <option value="Kg">Kg</option>
-              </select>
-            </div>
-            <div class="campo">
-              <input
-                type="text"
-                id="edit-prod-quantidade"
-                placeholder="Qtd *"
-                style="margin-bottom: 5px"
-                oninput="formatarQuantidadeEdicao()"
-              />
-            </div>
+            <button
+              type="button"
+              class="btn-azul"
+              style="margin-top: 5px; font-size: 13px"
+              onclick="adicionarItemEdicao()"
+            >
+              + Adicionar Produto
+            </button>
           </div>
-          <button
-            type="button"
-            class="btn-azul"
-            style="margin-top: 5px; font-size: 13px"
-            onclick="adicionarItemEdicao()"
-          >
-            + Adicionar Produto
-          </button>
         </div>
 
         <div class="modal-botoes">
@@ -363,7 +376,7 @@
         <h3 id="conferencia-titulo" style="color: #d32f2f; margin-bottom: 5px">
           Conferência de Itens Recolhidos
         </h3>
-        <p style="font-size: 13px; color: #555; margin-bottom: 15px">
+        <p id="conferencia-subtitulo" style="font-size: 13px; color: #555; margin-bottom: 15px">
           Confirme as quantidades efetivamente recebidas, remova itens não
           recolhidos ou inclua novos itens antes de concluir.
         </p>
@@ -546,11 +559,6 @@
 
     <script src="global/config.js"></script>
     <script src="global/painel.js"></script>
-    <script>
-      if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("./sw.js").catch(() => {});
-      }
-    </script>
     <script>
       if ("serviceWorker" in navigator) {
         let atualizando = false;

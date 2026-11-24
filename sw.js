@@ -1,4 +1,4 @@
-const CACHE_NAME = "bigmais-em-casa-v4";
+const CACHE_NAME = "bigmais-em-casa-v1.4.0";
 const ASSETS = [
   "./",
   "./index.html",
@@ -11,6 +11,7 @@ const ASSETS = [
   "./devolucao/index.html",
   "./devolucao/devolucao.js"
 ];
+
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
