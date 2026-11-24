@@ -1,56 +1,56 @@
-const CACHE_NAME = "bigmais-em-casa-v2.2.0";
-
-const ASSETS = [
+const CACHE_NAME = "portal-bigmais-v2.2.3";
+const ARQUIVOS_CACHE = [
   "./",
   "./index.html",
   "./manifest.json",
-  "./global/config.js",
   "./global/estilo.css",
+  "./global/config.js",
   "./global/painel.js",
   "./global/icon.svg",
   "./global/logo-bigmais.png",
   "./devolucao/index.html",
   "./devolucao/devolucao.js",
   "./estorno/index.html",
-  "./estorno/estorno.js"
+  "./estorno/estorno.js",
 ];
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS);
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ARQUIVOS_CACHE))
   );
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
+    caches
+      .keys()
+      .then((nomes) =>
+        Promise.all(
+          nomes
+            .filter((nome) => nome !== CACHE_NAME)
+            .map((nome) => caches.delete(nome))
+        )
       )
-    ).then(() => self.clients.claim())
+      .then(() => self.clients.claim())
   );
 });
 
 self.addEventListener("fetch", (event) => {
-  if (event.request.url.includes("script.google.com") || event.request.url.includes("viacep.com.br")) {
+  const url = new URL(event.request.url);
+  if (
+    event.request.method !== "GET" ||
+    url.origin !== self.location.origin
+  ) {
     return;
   }
 
   event.respondWith(
     fetch(event.request)
-      .then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200 && event.request.method === "GET") {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-        }
-        return networkResponse;
+      .then((resposta) => {
+        const copia = resposta.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copia));
+        return resposta;
       })
       .catch(() => caches.match(event.request))
   );

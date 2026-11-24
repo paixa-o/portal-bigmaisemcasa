@@ -108,8 +108,8 @@ function alternarMenuDropdown(event, protocolo) {
 }
 
 /**
-- Retorna o Estorno ativo (não cancelado) vinculado a uma DEV.
-- Se o EST estiver Cancelado, retorna undefined (liberando a DEV).
+ * Retorna o Estorno ativo (não cancelado) vinculado a uma DEV.
+ * Se o EST estiver Cancelado, retorna undefined (liberando a DEV).
  */
 function obterEstornoVinculado(protocoloDev, ignorarProtocoloEst = "") {
   return cacheSolicitacoes.find(
@@ -136,37 +136,57 @@ function atualizarKPIs(lista) {
 }
 
 async function carregarSolicitacoesDaPlanilha() {
-  const tbody = document.getElementById("corpo-tabela-solicitacoes");
-  tbody.innerHTML = `
-    <tr>
-      <td colspan="9" style="text-align: center; padding: 30px; color: #1976d2; font-weight: 600;">
-        Carregando solicitações da planilha...
-      </td>
-    </tr>
-  `;
+  const corpoTabela = document.getElementById("corpo-tabela-solicitacoes");
+  if (!corpoTabela) return;
+
+  if (
+    typeof URL_API_PLANILHA === "undefined" ||
+    !URL_API_PLANILHA.startsWith("http")
+  ) {
+    corpoTabela.innerHTML =
+      '<tr><td colspan="9" style="text-align:center; padding:25px; color:#d32f2f;">Configure a URL da Planilha Google no arquivo <strong>global/config.js</strong>.</td></tr>';
+    return;
+  }
+
+  corpoTabela.innerHTML =
+    '<tr><td colspan="9" style="text-align:center; padding:25px; color:#64748b;">Sincronizando solicitações com a Planilha Google...</td></tr>';
 
   try {
-    const resposta = await fetch(URL_API_PLANILHA);
-    const dados = await resposta.json();
+    const separador = URL_API_PLANILHA.includes("?") ? "&" : "?";
+    const resposta = await fetch(`${URL_API_PLANILHA}${separador}t=${Date.now()}`);
+
+    if (!resposta.ok) {
+      throw new Error(`HTTP ${resposta.status} (${resposta.statusText})`);
+    }
+
+    const texto = await resposta.text();
+    let dados;
+    try {
+      dados = JSON.parse(texto);
+    } catch (e) {
+      throw new Error(
+        "Resposta não é JSON válido. Verifique se a URL em global/config.js está correta e publicada como 'Qualquer pessoa'."
+      );
+    }
 
     if (dados.sucesso) {
-      cacheSolicitacoes = dados.solicitacoes;
-      localStorage.setItem("contador_devolucao", dados.contadores.DEV || 0);
-      localStorage.setItem("contador_troca", dados.contadores.TRC || 0);
-      localStorage.setItem("contador_estorno", dados.contadores.EST || 0);
+      cacheSolicitacoes = Array.isArray(dados.solicitacoes)
+        ? dados.solicitacoes
+        : [];
       renderizarTabela();
     } else {
-      throw new Error(dados.erro || "Erro desconhecido");
+      throw new Error(dados.erro || "Erro desconhecido retornado pela planilha.");
     }
   } catch (erro) {
-    console.error("Erro ao carregar planilha:", erro);
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="9" style="text-align: center; padding: 30px; color: #d32f2f;">
-          Não foi possível conectar à Planilha Google. Verifique sua conexão ou a URL em <strong>global/config.js</strong>.
-        </td>
-      </tr>
-    `;
+    console.error("Erro detalhado ao carregar planilha:", erro);
+    const msgSegura = String(erro.message || erro)
+      .replace(/&/g, "&")
+      .replace(/</g, "<")
+      .replace(/>/g, ">");
+    corpoTabela.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:25px; color:#dc2626;">
+      <strong>Não foi possível conectar à Planilha Google.</strong><br>
+      <small style="color:#475569;">Motivo técnico: ${msgSegura}</small>
+    </td></tr>`;
   }
 }
 
@@ -182,23 +202,38 @@ function renderizarTabela() {
   const filtroTipo = document.getElementById("filtro-tipo").value;
   const filtroStatus = document.getElementById("filtro-status").value;
 
+  const listaValida = cacheSolicitacoes.filter(
+    (item) => item && typeof item === "object" && item.protocolo
+  );
+
   const listaPorLoja =
     filtroLoja === "TODOS"
-      ? cacheSolicitacoes
-      : cacheSolicitacoes.filter((item) => item.loja === filtroLoja);
+      ? listaValida
+      : listaValida.filter((item) => String(item.loja || "") === filtroLoja);
   atualizarKPIs(listaPorLoja);
 
-  const filtradas = cacheSolicitacoes.filter((item) => {
-    const bateLoja = filtroLoja === "TODOS" || item.loja === filtroLoja;
-    const bateTipo = filtroTipo === "TODOS" || item.tipo === filtroTipo;
-    const bateStatus = filtroStatus === "TODOS" || item.status === filtroStatus;
+  const filtradas = listaValida.filter((item) => {
+    const lojaStr = String(item.loja || "");
+    const tipoStr = String(item.tipo || "");
+    const statusStr = String(item.status || "");
 
-    const protocoloLower = item.protocolo.toLowerCase();
+    const bateLoja = filtroLoja === "TODOS" || lojaStr === filtroLoja;
+    const bateTipo = filtroTipo === "TODOS" || tipoStr === filtroTipo;
+    const bateStatus = filtroStatus === "TODOS" || statusStr === filtroStatus;
+
+    const protocoloStr = String(item.protocolo || "");
+    const protocoloLower = protocoloStr.toLowerCase();
     const protocoloSemHifen = protocoloLower.replace(/[-\s]/g, "");
-    const protocoloApenasNumeros = item.protocolo.replace(/\D/g, "");
+    const protocoloApenasNumeros = protocoloStr.replace(/\D/g, "");
 
-    const cpfLimpo = item.cliente.cpf.replace(/\D/g, "");
-    const telefoneLimpo = (item.cliente.telefone || "").replace(/\D/g, "");
+    const pedidoStr = String(item.numeroPedido || "");
+    const clienteObj = item.cliente || {};
+    const nomeClienteStr = String(clienteObj.nome || "");
+    const cpfClienteStr = String(clienteObj.cpf || "");
+    const telClienteStr = String(clienteObj.telefone || "");
+
+    const cpfLimpo = cpfClienteStr.replace(/\D/g, "");
+    const telefoneLimpo = telClienteStr.replace(/\D/g, "");
 
     const bateBusca =
       termoBusca === "" ||
@@ -206,9 +241,9 @@ function renderizarTabela() {
       (termoSemHifen !== "" && protocoloSemHifen.includes(termoSemHifen)) ||
       (termoLimpoNumeros !== "" &&
         protocoloApenasNumeros.includes(termoLimpoNumeros)) ||
-      item.numeroPedido.toLowerCase().includes(termoBusca.replace(/^#+/, "")) ||
-      item.cliente.nome.toLowerCase().includes(termoBusca) ||
-      item.cliente.cpf.includes(termoBusca) ||
+      pedidoStr.toLowerCase().includes(termoBusca.replace(/^#+/, "")) ||
+      nomeClienteStr.toLowerCase().includes(termoBusca) ||
+      cpfClienteStr.includes(termoBusca) ||
       (termoLimpoNumeros !== "" &&
         (cpfLimpo.includes(termoLimpoNumeros) ||
           telefoneLimpo.includes(termoLimpoNumeros)));
@@ -237,6 +272,8 @@ function renderizarTabela() {
     const isEmAberto =
       sol.status === "Em andamento" || sol.status === "Aguardando Financeiro";
 
+    const clienteSeg = sol.cliente || { nome: "-", cpf: "", telefone: "" };
+
     const estornoVinculado = isDevolucao
       ? obterEstornoVinculado(sol.protocolo)
       : null;
@@ -260,7 +297,7 @@ function renderizarTabela() {
           ? "badge-tipo-trc"
           : "badge-tipo-est";
 
-    const qtdItens = sol.produtos ? sol.produtos.length : 0;
+    const qtdItens = Array.isArray(sol.produtos) ? sol.produtos.length : 0;
     const textoColunaItens = isEstorno
       ? `<strong style="color: #0369a1;">${sol.valorDevolvido || sol.valorEstorno || "-"}</strong>`
       : sol.compraInteira && qtdItens === 0
@@ -295,14 +332,14 @@ function renderizarTabela() {
         </td>
         <td><small style="font-weight: 600; color: #334155;">${sol.loja || "-"}</small></td>
         <td><span class="badge ${classeBadgeTipo}">${sol.tipo}</span></td>
-        <td>${sol.dataSolicitacao}</td>
+        <td>${sol.dataSolicitacao || "-"}</td>
         <td>
-          ${sol.cliente.nome}<br>
-          <small style="color: #666;">${sol.cliente.telefone}</small>
+          ${clienteSeg.nome || "-"}<br>
+          <small style="color: #666;">${clienteSeg.telefone || ""}</small>
         </td>
-        <td>#${sol.numeroPedido}</td>
+        <td>#${String(sol.numeroPedido || "").replace(/^#+/, "")}</td>
         <td>${textoColunaItens}</td>
-        <td><span class="badge ${classeBadgeStatus}">${sol.status}</span></td>
+        <td><span class="badge ${classeBadgeStatus}">${sol.status || "Em andamento"}</span></td>
         <td>
           <div class="acoes-linha">
             ${
