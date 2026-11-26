@@ -3,6 +3,16 @@ let listaDevolucoesElegiveisCache = [];
 let estornoRecemCriado = null;
 let formularioEstornoAlterado = false;
 
+function aplicarDadosUsuarioSessao(somenteSeVazio = false) {
+  if (typeof preencherDadosUsuarioLogado === "function") {
+    preencherDadosUsuarioLogado({
+      seletoresSolicitante: ["#solicitante"],
+      seletoresLoja: ["#loja"],
+      somenteSeVazio,
+    });
+  }
+}
+
 function atualizarProtocoloEstornoLocal() {
   const campoId = document.getElementById("idsolicitacao");
   const campoProtocolo = document.getElementById("protocolo");
@@ -31,6 +41,7 @@ async function inicializarDadosEstorno() {
   campoData.value = `${dataFormatada} às ${horaFormatada}`;
 
   atualizarProtocoloEstornoLocal();
+  aplicarDadosUsuarioSessao(false);
 
   try {
     if (
@@ -165,6 +176,8 @@ function limparCamposDadosEstorno() {
   verificarOutroMotivoEstorno();
   document.getElementById("cpfcliente").setCustomValidity("");
   document.getElementById("telefonecliente").setCustomValidity("");
+
+  aplicarDadosUsuarioSessao(true);
 }
 
 document.addEventListener("click", (e) => {
@@ -242,7 +255,12 @@ function selecionarDevolucaoVinculo(protocoloDev) {
   document.getElementById("busca-devolucao").value = dev.protocolo;
   document.getElementById("resultados-busca-dev").style.display = "none";
 
-  if (dev.loja) document.getElementById("loja").value = dev.loja;
+  if (dev.loja) {
+    document.getElementById("loja").value = dev.loja;
+  } else {
+    aplicarDadosUsuarioSessao(true);
+  }
+
   document.getElementById("nomecliente").value = dev.cliente?.nome || "";
   document.getElementById("cpfcliente").value = dev.cliente?.cpf || "";
   document.getElementById("telefonecliente").value =
@@ -436,6 +454,7 @@ function reiniciarTelaEstorno() {
   document.getElementById("formEstorno").reset();
   alternarPedidoNaoPago();
   desvincularDevolucao(true);
+  aplicarDadosUsuarioSessao(false);
 
   formularioEstornoAlterado = false;
   inicializarDadosEstorno();
@@ -578,6 +597,7 @@ document.addEventListener("DOMContentLoaded", () => {
     elVersao.textContent = `Versão ${VERSAO_PORTAL}`;
   }
 
+  aplicarDadosUsuarioSessao(false);
   inicializarDadosEstorno();
 
   const form = document.getElementById("formEstorno");
