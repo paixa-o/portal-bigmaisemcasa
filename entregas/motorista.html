@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#d32f2f" />
+    <title>Minhas Entregas - Bigmais em Casa</title>
+    <link rel="icon" type="image/svg+xml" href="../global/icon.svg" />
+    <link rel="stylesheet" href="../global/estilo.css" />
+    <style>
+      .container-motorista {
+        max-width: 720px;
+        margin: 0 auto;
+      }
+
+      .card-login-motorista,
+      .card-painel-motorista {
+        background-color: #ffffff;
+        border-radius: 10px;
+        padding: 22px;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+        margin-bottom: 20px;
+      }
+
+      .erro-login {
+        display: none;
+        background-color: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #b91c1c;
+        padding: 10px 14px;
+        border-radius: 6px;
+        font-size: 13.5px;
+        font-weight: 600;
+        margin-bottom: 14px;
+      }
+
+      .erro-login.visivel {
+        display: block;
+      }
+
+      .topo-painel-motorista {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding-bottom: 14px;
+        margin-bottom: 16px;
+        border-bottom: 1px solid #e2e8f0;
+      }
+
+      .grid-resumo-motorista {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+
+      .box-resumo-motorista {
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .box-resumo-motorista small {
+        font-size: 11.5px;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+      }
+
+      .box-resumo-motorista strong {
+        font-size: 20px;
+        color: #0f172a;
+      }
+
+      .filtro-periodo-motorista {
+        display: grid;
+        grid-template-columns: 1fr 1fr auto;
+        gap: 12px;
+        align-items: end;
+        margin-bottom: 16px;
+      }
+
+      .filtro-periodo-motorista input,
+      .filtro-periodo-motorista button {
+        margin-bottom: 0;
+      }
+
+      .item-entrega {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        background-color: #ffffff;
+      }
+
+      .item-entrega-info strong {
+        display: block;
+        font-size: 14px;
+        color: #1e293b;
+      }
+
+      .item-entrega-info small {
+        color: #64748b;
+        font-size: 12.5px;
+      }
+
+      .item-entrega-valores {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+      }
+
+      .qtd-badge {
+        background-color: #e0f2fe;
+        color: #0369a1;
+        padding: 4px 9px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .valor-com {
+        font-size: 14.5px;
+        font-weight: 800;
+        color: #15803d;
+      }
+
+      .vazio-msg {
+        text-align: center;
+        padding: 24px;
+        color: #64748b;
+        font-size: 13.5px;
+      }
+
+      @media (max-width: 640px) {
+        .grid-resumo-motorista,
+        .filtro-periodo-motorista {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container-motorista">
+      <header class="cabecalho-portal">
+        <div class="marca-portal">
+          <div class="logo-wrapper">
+            <img
+              src="../global/logo-bigmais.png"
+              alt="Logo Bigmais em Casa"
+              class="logo-portal"
+            />
+          </div>
+          <div>
+            <h1>Minhas Entregas</h1>
+            <span>Bigmais em Casa • Consulta de Motoristas e Ajudantes</span>
+          </div>
+        </div>
+        <div class="acoes-cabecalho">
+          <button
+            type="button"
+            id="btn-instalar-app"
+            class="btn-cabecalho-primario"
+            style="display: none"
+            onclick="instalarAplicativoMotorista()"
+          >
+            Instalar Aplicativo
+          </button>
+          <a href="../index.html" class="btn-cabecalho-secundario">
+            Portal Interno
+          </a>
+        </div>
+      </header>
+
+      <!-- TELA DE LOGIN DO MOTORISTA -->
+      <section id="tela-login-motorista" class="card-login-motorista">
+        <h2 style="font-size: 18px; color: #1e293b; margin-bottom: 14px">
+          Consultar Entregas e Comissões
+        </h2>
+
+        <div id="erro-login" class="erro-login" role="alert"></div>
+
+        <form onsubmit="entrarConsultaMotorista(event)">
+          <div class="campo">
+            <label for="select-motorista" class="obrigatorio">Seu Nome</label>
+            <select id="select-motorista" required>
+              <option value="">Carregando lista...</option>
+            </select>
+          </div>
+
+          <div class="campo">
+            <label for="senha-chapa" class="obrigatorio">Sua CHAPA</label>
+            <input
+              type="text"
+              id="senha-chapa"
+              required
+              placeholder="Digite sua chapa"
+              autocomplete="off"
+            />
+          </div>
+
+          <div class="linha-campo">
+            <div class="campo">
+              <label for="login-data-inicio">Data Inicial</label>
+              <input type="date" id="login-data-inicio" required />
+            </div>
+
+            <div class="campo">
+              <label for="login-data-fim">Data Final</label>
+              <input type="date" id="login-data-fim" required />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            id="btn-consultar"
+            class="btn-salvar-principal"
+            style="width: 100%"
+          >
+            Consultar Minhas Entregas
+          </button>
+        </form>
+      </section>
+
+      <!-- TELA DO PAINEL APÓS AUTENTICAÇÃO -->
+      <section
+        id="tela-painel-motorista"
+        class="card-painel-motorista"
+        style="display: none"
+      >
+        <div class="topo-painel-motorista">
+          <div>
+            <h2
+              id="motorista-nome-titulo"
+              style="font-size: 19px; color: #0f172a"
+            ></h2>
+            <small
+              id="motorista-detalhes-titulo"
+              style="color: #64748b; font-weight: 600"
+            ></small>
+          </div>
+          <button
+            type="button"
+            class="btn-cancelar"
+            onclick="sairConsultaMotorista()"
+          >
+            Sair
+          </button>
+        </div>
+
+        <div class="filtro-periodo-motorista">
+          <div class="campo">
+            <label for="filtro-data-inicio">De</label>
+            <input type="date" id="filtro-data-inicio" />
+          </div>
+          <div class="campo">
+            <label for="filtro-data-fim">Até</label>
+            <input type="date" id="filtro-data-fim" />
+          </div>
+          <button
+            type="button"
+            class="btn-azul"
+            style="height: 42px"
+            onclick="reconsultarPeriodoMotorista()"
+          >
+            Atualizar
+          </button>
+        </div>
+
+        <div class="grid-resumo-motorista">
+          <div class="box-resumo-motorista">
+            <small>Dias Trabalhados</small>
+            <strong id="resumo-dias">0</strong>
+          </div>
+          <div class="box-resumo-motorista">
+            <small>Total de Entregas</small>
+            <strong id="resumo-entregas">0</strong>
+          </div>
+          <div class="box-resumo-motorista">
+            <small>Comissão Estimada</small>
+            <strong id="resumo-comissao" style="color: #15803d">R$ 0,00</strong>
+          </div>
+        </div>
+
+        <div id="lista-entregas-motorista"></div>
+      </section>
+
+      <footer class="rodape-portal">
+        <span>Portal Bigmais em Casa</span>
+        <span>Módulo do Motorista</span>
+      </footer>
+    </div>
+
+    <script src="../global/config.js"></script>
+    <script src="./motorista.js"></script>
+  </body>
+</html>

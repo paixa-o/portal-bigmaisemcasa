@@ -1,0 +1,31 @@
+{
+  "name": "Minhas Entregas - Bigmais em Casa",
+  "short_name": "Entregas",
+  "description": "Consulta de entregas e comissões por período para motoristas e ajudantes.",
+  "start_url": "./motorista.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f1f5f9",
+  "theme_color": "#d32f2f",
+  "icons": [
+    {
+      "src": "../global/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "../global/logo-bigmais.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "../global/logo-bigmais.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

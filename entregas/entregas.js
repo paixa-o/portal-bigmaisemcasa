@@ -85,9 +85,17 @@ function atualizarStatusBanco(estado, texto) {
   el.textContent = texto;
 }
 
-// =========================================================================
-// INTEGRAÇÃO COM O BANCO DE DADOS (GOOGLE APPS SCRIPT / PLANILHA)
-// =========================================================================
+function copiarLinkMotorista() {
+  const urlBase = window.location.href.replace(/[^/]*$/, "");
+  const linkCompleto = `${urlBase}motorista.html`;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(linkCompleto).then(() => {
+      alert(`Link mobile copiado para enviar aos motoristas:\n\n${linkCompleto}`);
+    });
+  } else {
+    prompt("Copie o link abaixo para enviar aos motoristas:", linkCompleto);
+  }
+}
 
 async function enviarRequisicaoBanco(payload) {
   if (typeof URL_API_PLANILHA === "undefined" || !URL_API_PLANILHA) {
@@ -175,10 +183,6 @@ async function sincronizarComBanco(exibirAlerta = false) {
     }
   }
 }
-
-// =========================================================================
-// FORMATAÇÕES, PAGINAÇÃO E UTILITÁRIOS
-// =========================================================================
 
 function normalizarDataISO(valor) {
   if (!valor) return "";
@@ -283,24 +287,14 @@ function formatarDataISOparaBR(dataISO) {
   return `${partes[2]}/${partes[1]}/${partes[0]}`;
 }
 
-function escaparXML(texto) {
-  const valor = texto === null || texto === undefined ? "" : String(texto);
-  return valor
-    .replace(/&/g, "\u0026amp;")
-    .replace(/</g, "\u0026lt;")
-    .replace(/>/g, "\u0026gt;")
-    .replace(/"/g, "\u0026quot;")
-    .replace(/'/g, "\u0026apos;");
-}
-
 function escaparHTML(texto) {
   const valor = texto === null || texto === undefined ? "" : String(texto);
   return valor
-    .replace(/&/g, "\u0026amp;")
-    .replace(/</g, "\u0026lt;")
-    .replace(/>/g, "\u0026gt;")
-    .replace(/"/g, "\u0026quot;")
-    .replace(/'/g, "\u0026#39;");
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function slugTextoArquivo(texto) {
@@ -316,7 +310,7 @@ function preencherOperadorLogado() {
   if (typeof preencherDadosUsuarioLogado === "function") {
     preencherDadosUsuarioLogado({
       seletoresSolicitante: ["#entrega-lancado-por"],
-      seletoresLoja: ["#entrega-loja", "#relatorio-loja"],
+      seletoresLoja: ["#entrega-loja"],
       somenteSeVazio: false,
     });
   }
@@ -381,10 +375,6 @@ function mudarPaginaHistorico(novaPagina) {
   paginaHistorico = Math.max(1, novaPagina);
   renderizarHistorico();
 }
-
-// =========================================================================
-// SELETORES INTELIGENTES (LANÇAMENTO DE ENTREGAS E RELATÓRIO PDF)
-// =========================================================================
 
 function definirFiltroFuncaoLancamento(funcao) {
   filtroFuncaoLancamento = funcao || "TODOS";
@@ -553,8 +543,6 @@ function atualizarResumoEntregadorLancamento(ent) {
     <strong>${formatarMoedaBR(ent.tarifa)}/entrega</strong>
   `;
 }
-
-// --- Seletor Inteligente do Relatório PDF ---
 
 function renderizarOpcoesListaPDF(termoBusca = "") {
   const listaEl = document.getElementById("lista-sugestoes-pdf");
@@ -756,10 +744,6 @@ function sincronizarSeletoresEntregadores() {
   }
 }
 
-// =========================================================================
-// MODAL DE EDIÇÃO / VINCULAÇÃO DE LANÇAMENTO DE ENTREGA
-// =========================================================================
-
 function renderizarOpcoesListaEdicaoLanc(termoBusca = "") {
   const listaEl = document.getElementById("lista-sugestoes-edicao-lanc");
   const hiddenId = document.getElementById("edit-lanc-entregador-id");
@@ -905,7 +889,6 @@ function abrirModalEditarLancamento(idLancamento) {
   document.getElementById("edit-lanc-quantidade").value = lanc.quantidade || 1;
   document.getElementById("edit-lanc-observacao").value = lanc.observacao || "";
 
-  // Tenta localizar o entregador cadastrado por ID, CHAPA ou Nome exato
   let entVinculado = entregadores.find((e) => e.id === lanc.entregadorId);
   if (!entVinculado && lanc.entregadorChapa) {
     entVinculado = entregadores.find(
@@ -1028,10 +1011,6 @@ async function salvarEdicaoLancamento(evento) {
     }
   }
 }
-
-// =========================================================================
-// CADASTRO, EDIÇÃO E ATIVAÇÃO/INATIVAÇÃO DE ENTREGADORES
-// =========================================================================
 
 function limparCamposEntregadorModal() {
   const nome = document.getElementById("ent-nome");
@@ -1343,10 +1322,6 @@ function renderizarTabelaEntregadores() {
   );
 }
 
-// =========================================================================
-// LANÇAMENTO E HISTÓRICO POR PERÍODO
-// =========================================================================
-
 function atualizarPreviaComissao() {
   const idEntregador = document.getElementById("entrega-entregador").value;
   const qtd = parseInt(document.getElementById("entrega-quantidade").value || "0", 10);
@@ -1435,8 +1410,6 @@ async function salvarLancamentoEntrega(evento) {
     elFim.value = data;
   }
 
-  const relatorioLoja = document.getElementById("relatorio-loja");
-  if (relatorioLoja) relatorioLoja.value = loja;
   preencherOperadorLogado();
 
   paginaHistorico = 1;
@@ -1505,24 +1478,34 @@ function obterPeriodoSelecionado() {
   return { dataInicio, dataFim };
 }
 
+function obterPeriodoRelatorioPDF() {
+  const elInicio = document.getElementById("pdf-data-inicio");
+  const elFim = document.getElementById("pdf-data-fim");
+  const hoje = obterDataHojeISO();
+
+  let dataInicio = (elInicio && elInicio.value) || obterPrimeiroDiaMesISO(hoje);
+  let dataFim = (elFim && elFim.value) || hoje;
+
+  if (dataInicio && dataFim && dataInicio > dataFim) {
+    const temp = dataInicio;
+    dataInicio = dataFim;
+    dataFim = temp;
+    if (elInicio) elInicio.value = dataInicio;
+    if (elFim) elFim.value = dataFim;
+  }
+
+  return { dataInicio, dataFim };
+}
+
 function formatarDescricaoPeriodo(dataInicio, dataFim) {
   const iniBR = formatarDataISOparaBR(dataInicio);
   const fimBR = formatarDataISOparaBR(dataFim);
   return iniBR === fimBR ? iniBR : `${iniBR} a ${fimBR}`;
 }
 
-function atualizarResumoPeriodoPDF() {
-  const { dataInicio, dataFim } = obterPeriodoSelecionado();
-  const elResumo = document.getElementById("pdf-periodo-resumo");
-  if (elResumo) {
-    elResumo.value = formatarDescricaoPeriodo(dataInicio, dataFim);
-  }
-}
-
 function aoAlterarPeriodoFiltro() {
   paginaHistorico = 1;
   renderizarHistorico();
-  atualizarResumoPeriodoPDF();
   atualizarKPIs();
 }
 
@@ -1685,9 +1668,12 @@ function atualizarKPIs() {
   lancamentosEntregas.forEach((l) => {
     const qtd = Number(l.quantidade) || 0;
     const com = Number(l.valorComissao) || 0;
+    const funcaoNorm = normalizarTextoBusca(l.funcao);
 
     if (l.data === dataRef) {
-      entregasDia += qtd;
+      if (funcaoNorm !== "ajudante") {
+        entregasDia += qtd;
+      }
       comissaoDia += com;
     }
     if ((!dataInicio || l.data >= dataInicio) && (!dataFim || l.data <= dataFim)) {
@@ -1709,12 +1695,8 @@ function atualizarKPIs() {
   );
 }
 
-// =========================================================================
-// RELATÓRIO DE USO DO SETOR EM PDF (GERAL DO PERÍODO OU INDIVIDUAL)
-// =========================================================================
-
 function gerarRelatorioSetorPDF() {
-  const { dataInicio, dataFim } = obterPeriodoSelecionado();
+  const { dataInicio, dataFim } = obterPeriodoRelatorioPDF();
   const lojaFiltro = document.getElementById("pdf-loja").value || "TODAS";
   const entregadorIdFiltro =
     document.getElementById("pdf-entregador").value || "TODOS";
@@ -2059,23 +2041,22 @@ function gerarRelatorioSetorPDF() {
   janelaPDF.document.close();
 }
 
-// =========================================================================
-// RELATÓRIO MENSAL PARA RH — XML + E-MAIL SEPARADO POR LOJA
-// =========================================================================
-
 function consolidarComissoesMesPorLoja(mesRef, lojaRef) {
   const mapa = new Map();
 
-  const lancamentosFiltrados = lancamentosEntregas.filter(
-    (l) => (l.data || "").startsWith(mesRef) && l.loja === lojaRef
-  );
+  const lancamentosFiltrados = lancamentosEntregas.filter((l) => {
+    if (!(l.data || "").startsWith(mesRef)) return false;
+    if (lojaRef !== "TODAS" && l.loja !== lojaRef) return false;
+    return true;
+  });
 
   lancamentosFiltrados.forEach((l) => {
-    const chave = l.entregadorId || `${l.entregadorChapa}-${l.entregadorNome}`;
+    const chave = `${l.loja}__${l.entregadorId || `${l.entregadorChapa}-${l.entregadorNome}`}`;
     const cadastro = entregadores.find((e) => e.id === l.entregadorId);
 
     if (!mapa.has(chave)) {
       mapa.set(chave, {
+        loja: l.loja,
         nome: (cadastro && cadastro.nome) || l.entregadorNome,
         chapa: (cadastro && cadastro.chapa) || l.entregadorChapa,
         funcao: (cadastro && cadastro.funcao) || l.funcao,
@@ -2101,73 +2082,25 @@ function consolidarComissoesMesPorLoja(mesRef, lojaRef) {
     item.lancadoPorSet.add(operador);
     item.lancamentosDetalhe.push({
       data: l.data,
+      loja: l.loja,
       quantidade: Number(l.quantidade) || 0,
+      tarifaUnitaria: Number(l.tarifaUnitaria) || item.tarifaUnitaria,
       valorComissao: Number(l.valorComissao) || 0,
       lancadoPor: operador,
       observacao: l.observacao || "",
     });
   });
 
-  return Array.from(mapa.values()).map((item) => ({
-    ...item,
-    lancadoPor: Array.from(item.lancadoPorSet).join(", "),
-  }));
-}
-
-function montarXMLComissoes(mesRef, lojaRef, itensConsolidados) {
-  const totalGeralEntregas = itensConsolidados.reduce(
-    (acc, i) => acc + i.totalEntregas,
-    0
-  );
-  const totalGeralComissao = Number(
-    itensConsolidados.reduce((acc, i) => acc + i.totalComissao, 0).toFixed(2)
-  );
-
-  const linhasEntregadores = itensConsolidados
-    .map((i) => {
-      const detalhes = i.lancamentosDetalhe
-        .map(
-          (d) => `
-        <lancamento>
-          <data>${escaparXML(d.data)}</data>
-          <quantidadeEntregas>${d.quantidade}</quantidadeEntregas>
-          <valorComissao>${Number(d.valorComissao || 0).toFixed(2)}</valorComissao>
-          <lancadoPor>${escaparXML(d.lancadoPor)}</lancadoPor>
-          <observacao>${escaparXML(d.observacao)}</observacao>
-        </lancamento>`
-        )
-        .join("");
-
-      return `
-    <entregador>
-      <loja>${escaparXML(lojaRef)}</loja>
-      <chapa>${escaparXML(i.chapa)}</chapa>
-      <nome>${escaparXML(i.nome)}</nome>
-      <funcao>${escaparXML(i.funcao)}</funcao>
-      <cpf>${escaparXML(i.cpf)}</cpf>
-      <quantidadeEntregas>${i.totalEntregas}</quantidadeEntregas>
-      <tarifaUnitaria>${Number(i.tarifaUnitaria || 0).toFixed(2)}</tarifaUnitaria>
-      <valorComissao>${Number(i.totalComissao || 0).toFixed(2)}</valorComissao>
-      <lancadoPor>${escaparXML(i.lancadoPor)}</lancadoPor>
-      <lancamentos>${detalhes}
-      </lancamentos>
-    </entregador>`;
-    })
-    .join("");
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<relatorioComissaoEntregas>
-  <loja>${escaparXML(lojaRef)}</loja>
-  <competencia>${escaparXML(mesRef)}</competencia>
-  <geradoEm>${escaparXML(new Date().toISOString())}</geradoEm>
-  <resumo>
-    <entregadoresComLancamento>${itensConsolidados.length}</entregadoresComLancamento>
-    <totalEntregas>${totalGeralEntregas}</totalEntregas>
-    <valorTotalComissao>${totalGeralComissao.toFixed(2)}</valorTotalComissao>
-  </resumo>
-  <entregadores>${linhasEntregadores}
-  </entregadores>
-</relatorioComissaoEntregas>`;
+  return Array.from(mapa.values())
+    .map((item) => ({
+      ...item,
+      lancadoPor: Array.from(item.lancadoPorSet).join(", "),
+    }))
+    .sort((a, b) => {
+      const cmpLoja = a.loja.localeCompare(b.loja, "pt-BR");
+      if (cmpLoja !== 0) return cmpLoja;
+      return a.nome.localeCompare(b.nome, "pt-BR");
+    });
 }
 
 function montarMensagemSimplesEmail(mesRef, lojaRef, itensConsolidados) {
@@ -2180,16 +2113,30 @@ function montarMensagemSimplesEmail(mesRef, lojaRef, itensConsolidados) {
     0
   );
 
-  const assunto = `Relatório de Comissão de Entregas (XML) - ${lojaRef} - Competência ${mesRef}`;
+  const descricaoLoja =
+    lojaRef === "TODAS" ? "Loja 8 - Vila Isa e Loja 9 - São Pedro" : lojaRef;
+
+  let resumoPorLojaTexto = "";
+  if (lojaRef === "TODAS") {
+    const lojasUnicas = ["Loja 8 - Vila Isa", "Loja 9 - São Pedro"];
+    const linhasLojas = lojasUnicas.map((lj) => {
+      const itensLj = itensConsolidados.filter((i) => i.loja === lj);
+      const entLj = itensLj.reduce((acc, i) => acc + i.totalEntregas, 0);
+      const comLj = itensLj.reduce((acc, i) => acc + i.totalComissao, 0);
+      return `  • ${lj}: ${entLj} entregas | ${formatarMoedaBR(comLj)}`;
+    });
+    resumoPorLojaTexto = `\nDetalhamento por unidade:\n${linhasLojas.join("\n")}\n`;
+  }
+
+  const assunto = `Relatório de Comissão de Entregas (Excel) - ${descricaoLoja} - Competência ${mesRef}`;
   const corpo = `Olá,
 
-Segue em anexo o arquivo XML com o relatório mensal de comissão de entregas referente à competência ${mesRef}.
+Segue em anexo a planilha em Excel (.xlsx) com o relatório mensal de comissão de entregas referente à competência ${mesRef} (${descricaoLoja}).
 
 Resumo do período:
-- Entregadores com lançamento: ${itensConsolidados.length}
+- Registros consolidados: ${itensConsolidados.length}
 - Total de entregas: ${totalEntregas}
-- Valor total de comissão: ${formatarMoedaBR(totalComissao)}
-
+- Valor total de comissão: ${formatarMoedaBR(totalComissao)}${resumoPorLojaTexto}
 Atenciosamente,`;
 
   return { assunto, corpo };
@@ -2199,50 +2146,130 @@ function atualizarPreviaRelatorioRH() {
   const elMes = document.getElementById("relatorio-mes");
   const elLoja = document.getElementById("relatorio-loja");
   const mesRef = (elMes && elMes.value) || obterDataHojeISO().slice(0, 7);
-  const lojaRef = (elLoja && elLoja.value) || "Loja 8 - Vila Isa";
+  const lojaRef = (elLoja && elLoja.value) || "TODAS";
 
   const consolidado = consolidarComissoesMesPorLoja(mesRef, lojaRef);
   const res = montarMensagemSimplesEmail(mesRef, lojaRef, consolidado);
 
+  const descricaoLoja =
+    lojaRef === "TODAS" ? "Todas as Lojas (Loja 8 + Loja 9)" : lojaRef;
   const elTitulo = document.getElementById("titulo-modal-email-comissao");
   const elAssunto = document.getElementById("email-comissao-assunto");
   const elCorpo = document.getElementById("email-comissao-corpo");
 
   if (elTitulo) {
-    elTitulo.textContent = `Mensagem de E-mail — ${lojaRef} (${mesRef})`;
+    elTitulo.textContent = `Mensagem de E-mail — ${descricaoLoja} (${mesRef})`;
   }
   if (elAssunto) elAssunto.value = res.assunto;
   if (elCorpo) elCorpo.value = res.corpo;
 }
 
-function gerarEbaixarRelatorioXML() {
+function gerarEbaixarRelatorioExcel() {
   const mesRef = document.getElementById("relatorio-mes").value;
   const lojaRef = document.getElementById("relatorio-loja").value;
 
   if (!lojaRef || !mesRef) {
-    alert("Selecione a loja e o mês de referência para gerar o XML.");
+    alert("Selecione a loja e o mês de referência para gerar a planilha.");
+    return;
+  }
+
+  if (typeof XLSX === "undefined") {
+    alert("Biblioteca Excel ainda não carregou. Recarregue a página e tente novamente.");
     return;
   }
 
   const consolidado = consolidarComissoesMesPorLoja(mesRef, lojaRef);
   if (consolidado.length === 0) {
     alert(
-      `Não há lançamentos de entregas registrados para ${lojaRef} na competência ${mesRef}.`
+      `Não há lançamentos de entregas registrados na competência ${mesRef} para o filtro selecionado.`
     );
     return;
   }
 
-  const xmlConteudo = montarXMLComissoes(mesRef, lojaRef, consolidado);
-  const blob = new Blob([xmlConteudo], { type: "application/xml;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
+  const wb = XLSX.utils.book_new();
 
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `comissao-entregas-${slugTextoArquivo(lojaRef)}-${mesRef}.xml`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  const linhasResumo = consolidado.map((i) => ({
+    Competencia: mesRef,
+    Loja: i.loja,
+    CHAPA: i.chapa,
+    Nome: i.nome,
+    Funcao: i.funcao,
+    CPF: i.cpf,
+    Qtd_Entregas: i.totalEntregas,
+    Tarifa_Unitaria: Number(i.tarifaUnitaria || 0),
+    Valor_Comissao: Number(i.totalComissao || 0),
+    Lancado_Por: i.lancadoPor,
+  }));
+
+  const totalEntregas = consolidado.reduce((acc, i) => acc + i.totalEntregas, 0);
+  const totalComissao = Number(
+    consolidado.reduce((acc, i) => acc + i.totalComissao, 0).toFixed(2)
+  );
+
+  linhasResumo.push({
+    Competencia: "TOTAL GERAL",
+    Loja: lojaRef === "TODAS" ? "Loja 8 + Loja 9" : lojaRef,
+    CHAPA: "",
+    Nome: "",
+    Funcao: "",
+    CPF: "",
+    Qtd_Entregas: totalEntregas,
+    Tarifa_Unitaria: null,
+    Valor_Comissao: totalComissao,
+    Lancado_Por: "",
+  });
+
+  const wsResumo = XLSX.utils.json_to_sheet(linhasResumo);
+  wsResumo["!cols"] = [
+    { wch: 14 },
+    { wch: 22 },
+    { wch: 12 },
+    { wch: 32 },
+    { wch: 14 },
+    { wch: 16 },
+    { wch: 15 },
+    { wch: 16 },
+    { wch: 18 },
+    { wch: 24 },
+  ];
+  XLSX.utils.book_append_sheet(wb, wsResumo, "Resumo_RH");
+
+  const linhasDiarias = [];
+  consolidado.forEach((i) => {
+    i.lancamentosDetalhe.forEach((d) => {
+      linhasDiarias.push({
+        Data: formatarDataISOparaBR(d.data),
+        Loja: d.loja,
+        CHAPA: i.chapa,
+        Nome: i.nome,
+        Funcao: i.funcao,
+        Qtd_Entregas: d.quantidade,
+        Tarifa_Unitaria: Number(d.tarifaUnitaria || 0),
+        Valor_Comissao: Number(d.valorComissao || 0),
+        Lancado_Por: d.lancadoPor,
+        Observacao: d.observacao,
+      });
+    });
+  });
+
+  const wsDiario = XLSX.utils.json_to_sheet(linhasDiarias);
+  wsDiario["!cols"] = [
+    { wch: 13 },
+    { wch: 22 },
+    { wch: 12 },
+    { wch: 32 },
+    { wch: 14 },
+    { wch: 15 },
+    { wch: 16 },
+    { wch: 18 },
+    { wch: 24 },
+    { wch: 30 },
+  ];
+  XLSX.utils.book_append_sheet(wb, wsDiario, "Detalhamento_Diario");
+
+  const sufixoArquivo =
+    lojaRef === "TODAS" ? "todas-as-lojas" : slugTextoArquivo(lojaRef);
+  XLSX.writeFile(wb, `comissao-entregas-${sufixoArquivo}-${mesRef}.xlsx`);
 
   abrirModalEmailRelatorio();
 }
@@ -2278,16 +2305,11 @@ async function copiarMensagemComissao() {
   }
 }
 
-// =========================================================================
-// INICIALIZAÇÃO E EVENTOS GLOBAIS
-// =========================================================================
-
 function renderizarTudo() {
   preencherOperadorLogado();
   sincronizarSeletoresEntregadores();
   renderizarTabelaEntregadores();
   renderizarHistorico();
-  atualizarResumoPeriodoPDF();
   atualizarPreviaComissao();
   atualizarKPIs();
 }
@@ -2307,11 +2329,15 @@ function iniciarTelaEntregas() {
   const campoData = document.getElementById("entrega-data");
   const filtroInicio = document.getElementById("filtro-data-inicio");
   const filtroFim = document.getElementById("filtro-data-fim");
+  const pdfInicio = document.getElementById("pdf-data-inicio");
+  const pdfFim = document.getElementById("pdf-data-fim");
   const campoMesRH = document.getElementById("relatorio-mes");
 
   if (campoData) campoData.value = hojeISO;
   if (filtroInicio) filtroInicio.value = primeiroDiaMesISO;
   if (filtroFim) filtroFim.value = hojeISO;
+  if (pdfInicio) pdfInicio.value = primeiroDiaMesISO;
+  if (pdfFim) pdfFim.value = hojeISO;
   if (campoMesRH) campoMesRH.value = hojeISO.slice(0, 7);
 
   preencherOperadorLogado();

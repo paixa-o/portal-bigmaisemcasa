@@ -3,16 +3,6 @@ let listaDevolucoesElegiveisCache = [];
 let estornoRecemCriado = null;
 let formularioEstornoAlterado = false;
 
-function aplicarSolicitanteLogado(somenteSeVazio = false) {
-  if (typeof preencherDadosUsuarioLogado === "function") {
-    preencherDadosUsuarioLogado({
-      seletoresSolicitante: ["#solicitante"],
-      seletoresLoja: [],
-      somenteSeVazio,
-    });
-  }
-}
-
 function atualizarProtocoloEstornoLocal() {
   const campoId = document.getElementById("idsolicitacao");
   const campoProtocolo = document.getElementById("protocolo");
@@ -41,7 +31,6 @@ async function inicializarDadosEstorno() {
   campoData.value = `${dataFormatada} às ${horaFormatada}`;
 
   atualizarProtocoloEstornoLocal();
-  aplicarSolicitanteLogado(true);
 
   try {
     if (
@@ -59,7 +48,6 @@ async function inicializarDadosEstorno() {
         }
 
         if (Array.isArray(dados.solicitacoes)) {
-          // Protocolos DEV que já possuem um estorno ativo vinculado
           const devsJaEstornadas = new Set(
             dados.solicitacoes
               .filter(
@@ -71,7 +59,6 @@ async function inicializarDadosEstorno() {
               .map((s) => s.protocoloDevolucao)
           );
 
-          // Regra: Apenas Devoluções (DEV) com status "Concluída" e sem estorno ativo
           listaDevolucoesElegiveisCache = dados.solicitacoes.filter(
             (s) =>
               s.tipo === "DEV" &&
@@ -101,11 +88,65 @@ async function inicializarDadosEstorno() {
   }
 }
 
-// =========================================================================
-// LIMPEZA AUTOMÁTICA DOS CAMPOS AO TROCAR OU DESVINCULAR A DEV
-// =========================================================================
+function alternarPedidoNaoPago() {
+  const check = document.getElementById("pedidonaopago");
+  const inputValorPedido = document.getElementById("valorpedido");
+  const inputValorDevolvido = document.getElementById("valordevolvido");
+  const labelValorPedido = document.getElementById("label-valorpedido");
+  const labelValorDevolvido = document.getElementById("label-valordevolvido");
+  const btnAtalho = document.getElementById("btn-atalho-estorno-total");
+  const selectPagamento = document.getElementById("formapagamento");
+
+  if (!check || !inputValorPedido || !inputValorDevolvido) return;
+
+  const naoPago = check.checked;
+
+  if (naoPago) {
+    inputValorPedido.value = "R$ 0,00";
+    inputValorDevolvido.value = "R$ 0,00";
+    inputValorPedido.disabled = true;
+    inputValorDevolvido.disabled = true;
+    inputValorPedido.required = false;
+    inputValorDevolvido.required = false;
+    inputValorPedido.classList.add("campo-bloqueado-nao-pago");
+    inputValorDevolvido.classList.add("campo-bloqueado-nao-pago");
+
+    if (labelValorPedido) labelValorPedido.classList.remove("obrigatorio");
+    if (labelValorDevolvido) labelValorDevolvido.classList.remove("obrigatorio");
+    if (btnAtalho) btnAtalho.style.display = "none";
+    if (selectPagamento && !selectPagamento.value) {
+      selectPagamento.value = "Não pago (Compra cancelada)";
+    }
+  } else {
+    inputValorPedido.disabled = false;
+    inputValorDevolvido.disabled = false;
+    inputValorPedido.required = true;
+    inputValorDevolvido.required = true;
+    inputValorPedido.classList.remove("campo-bloqueado-nao-pago");
+    inputValorDevolvido.classList.remove("campo-bloqueado-nao-pago");
+
+    if (inputValorPedido.value === "R$ 0,00") inputValorPedido.value = "";
+    if (inputValorDevolvido.value === "R$ 0,00") inputValorDevolvido.value = "";
+
+    if (labelValorPedido) labelValorPedido.classList.add("obrigatorio");
+    if (labelValorDevolvido) labelValorDevolvido.classList.add("obrigatorio");
+    if (btnAtalho) btnAtalho.style.display = "inline-block";
+    if (
+      selectPagamento &&
+      selectPagamento.value === "Não pago (Compra cancelada)"
+    ) {
+      selectPagamento.value = "";
+    }
+  }
+}
 
 function limparCamposDadosEstorno() {
+  const checkNaoPago = document.getElementById("pedidonaopago");
+  if (checkNaoPago) {
+    checkNaoPago.checked = false;
+    alternarPedidoNaoPago();
+  }
+
   document.getElementById("loja").value = "";
   document.getElementById("nomecliente").value = "";
   document.getElementById("cpfcliente").value = "";
@@ -124,12 +165,7 @@ function limparCamposDadosEstorno() {
   verificarOutroMotivoEstorno();
   document.getElementById("cpfcliente").setCustomValidity("");
   document.getElementById("telefonecliente").setCustomValidity("");
-  aplicarSolicitanteLogado(true);
 }
-
-// =========================================================================
-// BUSCA E VÍNCULO COM PROTOCOLO DE DEVOLUÇÃO CONCLUÍDA (DEV)
-// =========================================================================
 
 document.addEventListener("click", (e) => {
   if (
@@ -200,7 +236,6 @@ function selecionarDevolucaoVinculo(protocoloDev) {
   );
   if (!dev) return;
 
-  // Limpa todos os campos antes de preencher com a nova DEV selecionada
   limparCamposDadosEstorno();
 
   document.getElementById("protocolodevolucao").value = dev.protocolo;
@@ -262,10 +297,6 @@ function desvincularDevolucao(limparFormulario = true) {
   }
 }
 
-// =========================================================================
-// MÁSCARAS, ATALHOS E VALIDAÇÕES
-// =========================================================================
-
 function mascaraMoeda(input) {
   let numeros = input.value.replace(/\D/g, "");
   if (numeros === "") {
@@ -281,6 +312,8 @@ function mascaraMoeda(input) {
 }
 
 function copiarValorPedidoParaDevolvido() {
+  if (document.getElementById("pedidonaopago")?.checked) return;
+
   const valorPedido = document.getElementById("valorpedido").value.trim();
   if (!valorPedido) {
     alert("Preencha primeiro o Valor do Pedido.");
@@ -401,26 +434,30 @@ function reiniciarTelaEstorno() {
   }
 
   document.getElementById("formEstorno").reset();
+  alternarPedidoNaoPago();
   desvincularDevolucao(true);
 
   formularioEstornoAlterado = false;
   inicializarDadosEstorno();
-  aplicarSolicitanteLogado(true);
 }
 
-// =========================================================================
-// E-MAIL FINANCEIRO E WHATSAPP PÓS-SALVAMENTO
-// =========================================================================
-
 function montarTextoEmailFinanceiro(sol) {
-  const assunto = `Solicitação de Estorno - Pedido #${sol.numeroPedido} | SEQ ${sol.sequenciaCliente}`;
+  const tituloTipo = sol.pedidoNaoPago
+    ? "Cancelamento / Baixa Fiscal (Pedido Não Pago)"
+    : "Solicitação de Estorno";
+
+  const assunto = `${tituloTipo} - Pedido #${sol.numeroPedido} | SEQ ${sol.sequenciaCliente}`;
   const linhaDev = sol.protocoloDevolucao
-    ? `• Protocolo de Devolução: ${sol.protocoloDevolucao} (uso interno do setor)\n`
+    ? `- Protocolo de Devolução: ${sol.protocoloDevolucao} (uso interno do setor)\n`
     : "";
+
+  const blocoFinanceiro = sol.pedidoNaoPago
+    ? `- Situação do Pagamento: PEDIDO NÃO PAGO (Compra cancelada antes do pagamento — sem estorno financeiro)\n- Valor do Pedido: R$ 0,00 (Não pago)\n- Valor Devolvido (a Estornar): R$ 0,00 (Não pago)\n- Forma de Pagamento: ${sol.formaPagamento}`
+    : `- Valor do Pedido: ${sol.valorPedido}\n- Valor Devolvido (a Estornar): ${sol.valorDevolvido}\n- Forma de Pagamento: ${sol.formaPagamento}`;
 
   const corpo = `Olá,
 
-Segue solicitação de estorno cliente E-Commerce (Bigmais em Casa):
+Segue registro de ${sol.pedidoNaoPago ? "cancelamento de pedido não pago" : "solicitação de estorno"} cliente E-Commerce (Bigmais em Casa):
 
 - Data de Solicitação: ${sol.dataSolicitacao}
 - Loja: ${sol.loja || "Não informada"}
@@ -428,7 +465,7 @@ Segue solicitação de estorno cliente E-Commerce (Bigmais em Casa):
 
 CONTROLE INTERNO DO SETOR E-COMMERCE (USO EXCLUSIVO DO SETOR — NÃO É CÓDIGO DO FINANCEIRO):
 
-- Protocolo de Estorno: ${sol.protocolo} (uso interno do setor)
+- Protocolo: ${sol.protocolo} (uso interno do setor)
 ${linhaDev}
 DADOS DO CLIENTE:
 
@@ -442,9 +479,7 @@ DADOS FISCAIS E FINANCEIROS:
 - Número do Pedido: #${sol.numeroPedido}
 - Nota Fiscal do Pedido (Nº): ${sol.nfPedido}
 - Nota Fiscal da Devolução: ${sol.nfDevolucao}
-- Valor do Pedido: ${sol.valorPedido}
-- Valor Devolvido (a Estornar): ${sol.valorDevolvido}
-- Forma de Pagamento: ${sol.formaPagamento}
+${blocoFinanceiro}
 
 MOTIVO DA SOLICITAÇÃO:
 
@@ -498,7 +533,15 @@ function enviarWhatsAppEstornoPosSalvar() {
     telefoneLimpo = "55" + telefoneLimpo;
   }
 
-  const mensagem = `Olá, ${sol.cliente.nome}! Aqui é do Bigmais em Casa!
+  const mensagem = sol.pedidoNaoPago
+    ? `Olá, ${sol.cliente.nome}! Aqui é do Bigmais em Casa!
+
+O cancelamento do seu pedido #${sol.numeroPedido} foi registrado com sucesso (Protocolo: ${sol.protocolo}).
+
+Como o pedido ainda não havia sido pago, não há cobrança ou valor pendente de estorno. Qualquer dúvida, estamos à disposição para te ajudar!
+
+Bigmais em Casa, é diferente!`
+    : `Olá, ${sol.cliente.nome}! Aqui é do Bigmais em Casa!
 
 Sua solicitação de estorno referente ao pedido #${sol.numeroPedido} foi registrada com sucesso.
 
@@ -529,10 +572,6 @@ function fecharModalPosEstorno() {
   window.location.href = "../index.html";
 }
 
-// =========================================================================
-// ENVIO DO FORMULÁRIO
-// =========================================================================
-
 document.addEventListener("DOMContentLoaded", () => {
   const elVersao = document.getElementById("versao-sistema");
   if (elVersao && typeof VERSAO_PORTAL !== "undefined") {
@@ -540,7 +579,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   inicializarDadosEstorno();
-  aplicarSolicitanteLogado(false);
 
   const form = document.getElementById("formEstorno");
   form.addEventListener("input", () => {
@@ -562,30 +600,38 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    const valorPedidoTexto = document.getElementById("valorpedido").value.trim();
-    const valorDevolvidoTexto = document
-      .getElementById("valordevolvido")
-      .value.trim();
+    const pedidoNaoPago = Boolean(
+      document.getElementById("pedidonaopago")?.checked
+    );
 
-    const numPedido = converterMoedaParaFloat(valorPedidoTexto);
-    const numDevolvido = converterMoedaParaFloat(valorDevolvidoTexto);
+    const valorPedidoTexto = pedidoNaoPago
+      ? "R$ 0,00 (Não pago)"
+      : document.getElementById("valorpedido").value.trim();
+    const valorDevolvidoTexto = pedidoNaoPago
+      ? "R$ 0,00 (Não pago)"
+      : document.getElementById("valordevolvido").value.trim();
 
-    if (numPedido <= 0) {
-      alert("Informe um Valor do Pedido válido maior que R$ 0,00.");
-      document.getElementById("valorpedido").focus();
-      return;
-    }
+    if (!pedidoNaoPago) {
+      const numPedido = converterMoedaParaFloat(valorPedidoTexto);
+      const numDevolvido = converterMoedaParaFloat(valorDevolvidoTexto);
 
-    if (numDevolvido <= 0) {
-      alert("Informe um Valor Devolvido / Estorno válido maior que R$ 0,00.");
-      document.getElementById("valordevolvido").focus();
-      return;
-    }
+      if (numPedido <= 0) {
+        alert("Informe um Valor do Pedido válido maior que R$ 0,00.");
+        document.getElementById("valorpedido").focus();
+        return;
+      }
 
-    if (numDevolvido > numPedido) {
-      alert("O Valor Devolvido não pode ser maior que o Valor do Pedido.");
-      document.getElementById("valordevolvido").focus();
-      return;
+      if (numDevolvido <= 0) {
+        alert("Informe um Valor Devolvido / Estorno válido maior que R$ 0,00.");
+        document.getElementById("valordevolvido").focus();
+        return;
+      }
+
+      if (numDevolvido > numPedido) {
+        alert("O Valor Devolvido não pode ser maior que o Valor do Pedido.");
+        document.getElementById("valordevolvido").focus();
+        return;
+      }
     }
 
     const botaoSalvar = document.getElementById("btn-registrar-estorno");
@@ -611,6 +657,7 @@ document.addEventListener("DOMContentLoaded", () => {
       tipo: "EST",
       status: "Em andamento",
       whatsappEnviado: false,
+      pedidoNaoPago: pedidoNaoPago,
       dataSolicitacao: document.getElementById("datasolicitacao").value,
       loja: document.getElementById("loja").value,
       solicitante: document.getElementById("solicitante").value.trim(),

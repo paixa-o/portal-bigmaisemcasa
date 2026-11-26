@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#d32f2f" />
     <title>Entregas e Comissões - Portal Bigmais em Casa</title>
+    <link rel="manifest" href="../manifest.json" />
     <link rel="icon" type="image/svg+xml" href="../global/icon.svg" />
     <link rel="stylesheet" href="../global/estilo.css" />
     <style>
@@ -173,9 +174,6 @@
         cursor: not-allowed;
       }
 
-      /* =========================================================
-         SELETOR INTELIGENTE DE ENTREGADOR (BUSCA + LISTA ESTÁVEL)
-         ========================================================= */
       .seletor-entregador-box {
         position: relative;
         margin-bottom: 15px;
@@ -418,6 +416,14 @@
           class="badge-versao-cabecalho"
           title="Versão atual do Portal"
         ></span>
+        <button
+          type="button"
+          class="btn-cabecalho-secundario"
+          onclick="copiarLinkMotorista()"
+          title="Copiar link mobile para motoristas e ajudantes consultarem suas entregas"
+        >
+          Link Motorista
+        </button>
         <a href="../home.html" class="btn-cabecalho-secundario">
           ← Voltar ao Início
         </a>
@@ -434,7 +440,7 @@
 
     <div class="grid-kpis">
       <div class="card-kpi">
-        <span class="kpi-titulo">Entregas no Dia</span>
+        <span class="kpi-titulo">Entregas no Dia (Motoristas)</span>
         <strong class="kpi-valor" id="kpi-entregas-dia">0</strong>
       </div>
       <div class="card-kpi kpi-andamento">
@@ -718,10 +724,20 @@
     <div class="secao">
       <h3>Relatório de Uso do Setor (PDF)</h3>
       <p style="font-size: 13px; color: #555; margin-bottom: 14px">
-        Gere um relatório interno em <strong>PDF</strong> utilizando o período definido em <strong>Data Inicial</strong> e <strong>Data Final</strong> acima, podendo emitir o consolidado geral ou o extrato individual de cada entregador.
+        Defina o período abaixo para emitir o relatório interno em <strong>PDF</strong> (consolidado geral ou extrato individual de cada entregador).
       </p>
 
       <div class="linha-campo" style="align-items: start">
+        <div class="campo">
+          <label for="pdf-data-inicio">Data Inicial:</label>
+          <input type="date" id="pdf-data-inicio" />
+        </div>
+
+        <div class="campo">
+          <label for="pdf-data-fim">Data Final:</label>
+          <input type="date" id="pdf-data-fim" />
+        </div>
+
         <div class="campo">
           <label for="pdf-loja">Loja:</label>
           <select id="pdf-loja">
@@ -777,16 +793,6 @@
             ></div>
           </div>
         </div>
-
-        <div class="campo">
-          <label for="pdf-periodo-resumo">Período do Relatório:</label>
-          <input
-            type="text"
-            id="pdf-periodo-resumo"
-            class="campo-automatico"
-            readonly
-          />
-        </div>
       </div>
 
       <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 6px">
@@ -801,20 +807,21 @@
       </div>
     </div>
 
-    <!-- RELATÓRIO MENSAL PARA RH (XML + E-MAIL POR LOJA) -->
+    <!-- RELATÓRIO MENSAL PARA RH (EXCEL .XLSX + E-MAIL POR LOJA OU AMBAS) -->
     <div class="secao">
-      <h3>Relatório Mensal para Pagamento de Comissão — RH (XML + E-mail por Loja)</h3>
+      <h3>Relatório Mensal para Pagamento de Comissão — RH (Planilha Excel + E-mail)</h3>
       <p style="font-size: 13px; color: #555; margin-bottom: 14px">
-        Selecione a <strong>loja</strong> e o <strong>mês de referência</strong> para gerar o arquivo <strong>XML</strong> e preparar a mensagem de e-mail para o setor de RH.
+        Selecione <strong>Todas as Lojas (Loja 8 + Loja 9)</strong> ou uma loja específica e o <strong>mês de referência</strong> para baixar a planilha <strong>Excel (.xlsx)</strong> e preparar a mensagem de e-mail para o setor de RH.
       </p>
 
       <div class="linha-campo" style="align-items: end">
         <div class="campo">
-          <label for="relatorio-loja" class="obrigatorio">Loja:</label>
+          <label for="relatorio-loja" class="obrigatorio">Loja(s):</label>
           <select
             id="relatorio-loja"
             onchange="atualizarPreviaRelatorioRH()"
           >
+            <option value="TODAS">Todas as Lojas (Loja 8 + Loja 9)</option>
             <option value="Loja 8 - Vila Isa">Loja 8 - Vila Isa</option>
             <option value="Loja 9 - São Pedro">Loja 9 - São Pedro</option>
           </select>
@@ -834,9 +841,9 @@
             type="button"
             class="btn-salvar-principal"
             style="padding: 10px 16px; font-size: 14px"
-            onclick="gerarEbaixarRelatorioXML()"
+            onclick="gerarEbaixarRelatorioExcel()"
           >
-            Gerar e Baixar XML + E-mail (RH)
+            Gerar e Baixar Excel (.xlsx) + E-mail (RH)
           </button>
           <button
             type="button"
@@ -1205,7 +1212,7 @@
       </div>
     </div>
 
-    <!-- MODAL MENSAGEM SIMPLES DE E-MAIL (XML POR LOJA - RH) -->
+    <!-- MODAL MENSAGEM SIMPLES DE E-MAIL (PLANILHA EXCEL - RH) -->
     <div
       id="modal-email-comissao"
       class="overlay-modal-entregas"
@@ -1214,7 +1221,7 @@
       <div class="cartao-modal-entregas" style="max-width: 680px">
         <div class="cabecalho-modal-entregas">
           <h3 id="titulo-modal-email-comissao" style="color: #0284c7">
-            Mensagem de E-mail — Relatório de Comissão (XML)
+            Mensagem de E-mail — Relatório de Comissão (Excel)
           </h3>
           <button
             type="button"
@@ -1227,7 +1234,7 @@
         </div>
 
         <p style="font-size: 13px; color: #555; margin-bottom: 12px">
-          Anexe o arquivo XML da loja selecionada ao e-mail e copie a mensagem abaixo.
+          Anexe a planilha Excel (.xlsx) baixada ao e-mail e copie a mensagem abaixo para enviar ao RH.
         </p>
 
         <div class="campo">
@@ -1245,7 +1252,7 @@
           <label for="email-comissao-corpo">Mensagem:</label>
           <textarea
             id="email-comissao-corpo"
-            rows="10"
+            rows="11"
             readonly
             style="
               height: auto;
@@ -1289,6 +1296,7 @@
         exigirAutenticacao("../index.html");
       }
     </script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <script src="entregas.js"></script>
   </body>
 </html>

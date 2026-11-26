@@ -448,16 +448,9 @@
     <script src="../../global/config.js"></script>
     <script src="../../global/auth.js"></script>
     <script>
-      exigirAutenticacao("../../index.html");
-    </script>
-    <script src="devolucao.js"></script>
-    <script src="../../global/config.js"></script>
-    <script src="../../global/auth.js"></script>
-    <script>
-      exigirAutenticacao("../../index.html");
-      window.addEventListener("DOMContentLoaded", () => {
-        preencherDadosUsuarioLogado({ somenteSeVazio: false });
-      });
+      if (typeof exigirAutenticacao === "function") {
+        exigirAutenticacao("../../index.html");
+      }
     </script>
     <script src="devolucao.js"></script>
   </body>

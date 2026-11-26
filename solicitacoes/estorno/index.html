@@ -208,6 +208,22 @@
         <!-- DADOS DO PEDIDO, NOTAS FISCAIS E VALORES -->
         <div class="secao">
           <h3>Dados Fiscais e Valores</h3>
+
+          <label class="box-pedido-nao-pago" for="pedidonaopago">
+            <input
+              type="checkbox"
+              id="pedidonaopago"
+              name="pedidonaopago"
+              onchange="alternarPedidoNaoPago()"
+            />
+            <div>
+              <span>Pedido não pago</span>
+              <small>
+                Marque esta opção para compras canceladas que não tiveram pagamento (bloqueia os campos de valor).
+              </small>
+            </div>
+          </label>
+
           <div class="linha-campo">
             <div class="campo">
               <label for="numeropedido" class="obrigatorio"
@@ -253,7 +269,7 @@
 
           <div class="linha-campo">
             <div class="campo">
-              <label for="valorpedido" class="obrigatorio"
+              <label for="valorpedido" id="label-valorpedido" class="obrigatorio"
                 >Valor do Pedido (R$):</label
               >
               <input
@@ -267,7 +283,10 @@
             </div>
 
             <div class="campo">
-              <label for="valordevolvido" class="obrigatorio"
+              <label
+                for="valordevolvido"
+                id="label-valordevolvido"
+                class="obrigatorio"
                 >Valor Devolvido / Estorno (R$):</label
               >
               <input
@@ -280,6 +299,7 @@
               />
               <button
                 type="button"
+                id="btn-atalho-estorno-total"
                 onclick="copiarValorPedidoParaDevolvido()"
                 style="
                   margin-top: -10px;
@@ -309,6 +329,9 @@
                 <option value="PicPay">PicPay</option>
                 <option value="POS (Alimentação/Refeição)">
                   POS (Alimentação/Refeição)
+                </option>
+                <option value="Não pago (Compra cancelada)">
+                  Não pago (Compra cancelada)
                 </option>
               </select>
             </div>
@@ -468,16 +491,9 @@
     <script src="../../global/config.js"></script>
     <script src="../../global/auth.js"></script>
     <script>
-      exigirAutenticacao("../../index.html");
-    </script>
-    <script src="estorno.js"></script>
-    <script src="../../global/config.js"></script>
-    <script src="../../global/auth.js"></script>
-    <script>
-      exigirAutenticacao("../../index.html");
-      window.addEventListener("DOMContentLoaded", () => {
-        preencherDadosUsuarioLogado({ somenteSeVazio: false });
-      });
+      if (typeof exigirAutenticacao === "function") {
+        exigirAutenticacao("../../index.html");
+      }
     </script>
     <script src="estorno.js"></script>
   </body>

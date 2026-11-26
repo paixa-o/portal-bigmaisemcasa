@@ -494,15 +494,29 @@ function abrirModalEmailEstorno(protocolo) {
   const sol = cacheSolicitacoes.find((s) => s.protocolo === protocolo);
   if (!sol) return;
 
-  const valorEstornar = sol.valorDevolvido || sol.valorEstorno || "R$ 0,00";
-  const assunto = `Solicitação de Estorno - Pedido #${sol.numeroPedido}${sol.sequenciaCliente ? ` | SEQ ${sol.sequenciaCliente}` : ""}`;
+  const isNaoPago = Boolean(sol.pedidoNaoPago);
+  const valorEstornar = isNaoPago
+    ? "R$ 0,00 (Não pago)"
+    : sol.valorDevolvido || sol.valorEstorno || "R$ 0,00";
+  const valorPedidoExibido = isNaoPago
+    ? "R$ 0,00 (Não pago)"
+    : sol.valorPedido || "Não informado";
+
+  const assunto = isNaoPago
+    ? `Cancelamento / Baixa Fiscal (Pedido Não Pago) - Pedido #${sol.numeroPedido}${sol.sequenciaCliente ? ` | SEQ ${sol.sequenciaCliente}` : ""}`
+    : `Solicitação de Estorno - Pedido #${sol.numeroPedido}${sol.sequenciaCliente ? ` | SEQ ${sol.sequenciaCliente}` : ""}`;
+
   const linhaDev = sol.protocoloDevolucao
     ? `• Protocolo de Devolução: ${sol.protocoloDevolucao} (uso interno do setor)\n`
     : "";
 
+  const blocoFinanceiro = isNaoPago
+    ? `- Situação do Pagamento: PEDIDO NÃO PAGO (Compra cancelada antes do pagamento — sem estorno financeiro)\n- Valor do Pedido: ${valorPedidoExibido}\n- Valor Devolvido (a Estornar): ${valorEstornar}\n- Forma de Pagamento: ${sol.formaPagamento || "Não pago (Compra cancelada)"}`
+    : `- Valor do Pedido: ${valorPedidoExibido}\n- Valor Devolvido (a Estornar): ${valorEstornar}\n- Forma de Pagamento: ${sol.formaPagamento || "Não informada"}`;
+
   const corpo = `Olá,
 
-Segue solicitação de estorno cliente E-Commerce (Bigmais em Casa):
+Segue ${isNaoPago ? "registro de cancelamento de pedido não pago" : "solicitação de estorno"} cliente E-Commerce (Bigmais em Casa):
 
 - Data de Solicitação: ${sol.dataSolicitacao}
 - Loja: ${sol.loja || "Não informada"}
@@ -524,9 +538,7 @@ DADOS FISCAIS E FINANCEIROS:
 - Número do Pedido: #${sol.numeroPedido}
 - Nota Fiscal do Pedido (Nº): ${sol.nfPedido || "Não informada"}
 - Nota Fiscal da Devolução: ${sol.nfDevolucao || "Não informada"}
-- Valor do Pedido: ${sol.valorPedido || "Não informado"}
-- Valor Devolvido (a Estornar): ${valorEstornar}
-- Forma de Pagamento: ${sol.formaPagamento || "Não informada"}
+${blocoFinanceiro}
 
 MOTIVO DA SOLICITAÇÃO:
 

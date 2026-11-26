@@ -1,4 +1,4 @@
-const CACHE_NAME = "portal-bigmais-v3.0.0";
+const CACHE_NAME = "portal-bigmais-v3.0.1";
 const ARQUIVOS_CACHE = [
   "./",
   "./index.html",
@@ -7,22 +7,34 @@ const ARQUIVOS_CACHE = [
   "./global/estilo.css",
   "./global/config.js",
   "./global/auth.js",
+  "./global/painel.js",
   "./global/icon.svg",
   "./global/logo-bigmais.png",
   "./solicitacoes/index.html",
-  "./solicitacoes/painel.js",
   "./solicitacoes/devolucao/index.html",
   "./solicitacoes/devolucao/devolucao.js",
   "./solicitacoes/estorno/index.html",
   "./solicitacoes/estorno/estorno.js",
   "./entregas/index.html",
   "./entregas/entregas.js",
+  "./entregas/motorista.html",
+  "./entregas/motorista.js",
+  "./entregas/manifest.json",
+  "./entregas/sw.js",
 ];
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ARQUIVOS_CACHE))
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.allSettled(
+        ARQUIVOS_CACHE.map((url) =>
+          cache.add(url).catch((err) => {
+            console.warn("Falha ao cachear arquivo:", url, err);
+          })
+        )
+      )
+    )
   );
 });
 

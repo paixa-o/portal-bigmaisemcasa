@@ -3,16 +3,6 @@ let contadoresPlanilha = {
   TRC: parseInt(localStorage.getItem("contador_troca") || 0, 10),
 };
 
-function aplicarSolicitanteLogado(somenteSeVazio = false) {
-  if (typeof preencherDadosUsuarioLogado === "function") {
-    preencherDadosUsuarioLogado({
-      seletoresSolicitante: ["#solicitante"],
-      seletoresLoja: [],
-      somenteSeVazio,
-    });
-  }
-}
-
 function atualizarPrefixoProtocoloLocal() {
   const campoId = document.getElementById("idsolicitacao");
   const campoProtocolo = document.getElementById("protocolo");
@@ -113,7 +103,6 @@ async function inicializarDadosAutomaticos() {
   campoData.value = `${dataFormatada} às ${horaFormatada}`;
 
   atualizarPrefixoProtocoloLocal();
-  aplicarSolicitanteLogado(true);
 
   try {
     if (
@@ -497,6 +486,10 @@ function reiniciarTela() {
   alternarCompraInteira();
   alternarEntregueEmLoja();
 
+  if (typeof preencherDadosUsuarioLogado === "function") {
+    preencherDadosUsuarioLogado({ somenteSeVazio: false });
+  }
+
   document.getElementById("cpfcliente").setCustomValidity("");
   document.getElementById("telefonecliente").setCustomValidity("");
   document.getElementById("cepcliente").setCustomValidity("");
@@ -506,7 +499,6 @@ function reiniciarTela() {
 
   formularioAlterado = false;
   inicializarDadosAutomaticos();
-  aplicarSolicitanteLogado(true);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -515,8 +507,11 @@ document.addEventListener("DOMContentLoaded", () => {
     elVersao.textContent = `Versão ${VERSAO_PORTAL}`;
   }
 
+  if (typeof preencherDadosUsuarioLogado === "function") {
+    preencherDadosUsuarioLogado({ somenteSeVazio: false });
+  }
+
   inicializarDadosAutomaticos();
-  aplicarSolicitanteLogado(false);
 
   const form = document.getElementById("formDevolucao");
 
