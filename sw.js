@@ -1,4 +1,4 @@
-const CACHE_NAME = "portal-bigmais-v2.3.0";
+const CACHE_NAME = "portal-bigmais-v3.0.0";
 const ARQUIVOS_CACHE = [
   "./",
   "./index.html",
