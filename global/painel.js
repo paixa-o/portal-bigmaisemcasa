@@ -1,4 +1,6 @@
 let cacheSolicitacoes = [];
+let limiteExibicaoTabela = 10;
+const TAMANHO_LOTE_TABELA = 10;
 let protocoloEmConferencia = null;
 let itensEmConferencia = [];
 let compraInteiraEmConferencia = false;
@@ -14,7 +16,7 @@ let ultimoCodigoEdicao = "";
 let protocoloEstornoEmEdicao = null;
 let devAnteriorEdicaoEstorno = "";
 
-// Prioridade de exibição dos status na tabela
+// Prioridade de exibição dos status na tabela (usada após a data de solicitação)
 const PRIORIDADE_STATUS_TABELA = {
   "Em andamento": 1,
   "Aguardando Financeiro": 2,
@@ -24,13 +26,27 @@ const PRIORIDADE_STATUS_TABELA = {
 
 function parseDataSolicitacao(dataStr) {
   if (!dataStr) return 0;
-  const partes = String(dataStr).trim().split("/");
-  if (partes.length !== 3) return 0;
-  const [dia, mes, ano] = partes;
-  return (
-    new Date(`${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`).getTime() ||
-    0
-  );
+  const texto = String(dataStr).trim();
+
+  // Suporta formatos como "25/11/2026 às 15:38", "25/11/2026 15:38:00" ou "25/11/2026"
+  const matchData = texto.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (!matchData) {
+    const timestampDireto = Date.parse(texto);
+    return Number.isNaN(timestampDireto) ? 0 : timestampDireto;
+  }
+
+  const dia = parseInt(matchData[1], 10);
+  const mes = parseInt(matchData[2], 10) - 1;
+  const ano = parseInt(matchData[3], 10);
+
+  const restoTexto = texto.slice(matchData.index + matchData[0].length);
+  const matchHora = restoTexto.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+
+  const hora = matchHora ? parseInt(matchHora[1], 10) : 0;
+  const minuto = matchHora ? parseInt(matchHora[2], 10) : 0;
+  const segundo = matchHora && matchHora[3] ? parseInt(matchHora[3], 10) : 0;
+
+  return new Date(ano, mes, dia, hora, minuto, segundo).getTime() || 0;
 }
 
 function extrairNumeroSequencial(sol) {
@@ -41,17 +57,25 @@ function extrairNumeroSequencial(sol) {
 
 function ordenarSolicitacoesTabela(lista) {
   return [...lista].sort((a, b) => {
-    const pesoA = PRIORIDADE_STATUS_TABELA[a.status] ?? 99;
-    const pesoB = PRIORIDADE_STATUS_TABELA[b.status] ?? 99;
-    if (pesoA !== pesoB) return pesoA - pesoB;
-
+    // 1º critério: Data/hora de envio/solicitação (mais recente primeiro)
     const diffData =
       parseDataSolicitacao(b.dataSolicitacao) -
       parseDataSolicitacao(a.dataSolicitacao);
     if (diffData !== 0) return diffData;
 
+    // 2º critério: Status
+    const pesoA = PRIORIDADE_STATUS_TABELA[a.status] ?? 99;
+    const pesoB = PRIORIDADE_STATUS_TABELA[b.status] ?? 99;
+    if (pesoA !== pesoB) return pesoA - pesoB;
+
+    // Desempate final: número sequencial do protocolo
     return extrairNumeroSequencial(b) - extrairNumeroSequencial(a);
   });
+}
+
+function verMaisSolicitacoes() {
+  limiteExibicaoTabela += TAMANHO_LOTE_TABELA;
+  renderizarTabela(false);
 }
 
 // Preenche selo e rodapé com a versão atual do config.js
@@ -139,6 +163,8 @@ async function carregarSolicitacoesDaPlanilha() {
   const corpoTabela = document.getElementById("corpo-tabela-solicitacoes");
   if (!corpoTabela) return;
 
+  limiteExibicaoTabela = TAMANHO_LOTE_TABELA;
+
   if (
     typeof URL_API_PLANILHA === "undefined" ||
     !URL_API_PLANILHA.startsWith("http")
@@ -173,7 +199,7 @@ async function carregarSolicitacoesDaPlanilha() {
       cacheSolicitacoes = Array.isArray(dados.solicitacoes)
         ? dados.solicitacoes
         : [];
-      renderizarTabela();
+      renderizarTabela(true);
     } else {
       throw new Error(dados.erro || "Erro desconhecido retornado pela planilha.");
     }
@@ -190,7 +216,11 @@ async function carregarSolicitacoesDaPlanilha() {
   }
 }
 
-function renderizarTabela() {
+function renderizarTabela(resetarLimite = true) {
+  if (resetarLimite) {
+    limiteExibicaoTabela = TAMANHO_LOTE_TABELA;
+  }
+
   const termoBusca = document
     .getElementById("filtro-busca")
     .value.trim()
@@ -252,8 +282,12 @@ function renderizarTabela() {
   });
 
   const tbody = document.getElementById("corpo-tabela-solicitacoes");
+  const barraPaginacao = document.getElementById("barra-paginacao-tabela");
+  const infoPaginacao = document.getElementById("info-paginacao-tabela");
+  const btnVerMais = document.getElementById("btn-ver-mais-solicitacoes");
 
   if (filtradas.length === 0) {
+    if (barraPaginacao) barraPaginacao.style.display = "none";
     tbody.innerHTML = `
       <tr>
         <td colspan="9" style="text-align: center; padding: 30px; color: #777;">
@@ -264,9 +298,19 @@ function renderizarTabela() {
     return;
   }
 
+  const ordenadas = ordenarSolicitacoesTabela(filtradas);
+  const itensVisiveis = ordenadas.slice(0, limiteExibicaoTabela);
+
+  if (barraPaginacao && infoPaginacao && btnVerMais) {
+    barraPaginacao.style.display = "flex";
+    infoPaginacao.textContent = `Exibindo ${itensVisiveis.length} de ${ordenadas.length} solicitação(ões)`;
+    btnVerMais.style.display =
+      itensVisiveis.length < ordenadas.length ? "inline-block" : "none";
+  }
+
   tbody.innerHTML = "";
 
-  ordenarSolicitacoesTabela(filtradas).forEach((sol) => {
+  itensVisiveis.forEach((sol) => {
     const isEstorno = sol.tipo === "EST";
     const isDevolucao = sol.tipo === "DEV";
     const isEmAberto =
@@ -549,7 +593,7 @@ async function atualizarStatusSimples(protocolo, novoStatus) {
       if (indice !== -1) {
         cacheSolicitacoes[indice].status = novoStatus;
       }
-      renderizarTabela();
+      renderizarTabela(false);
     } else {
       alert("Erro ao atualizar status: " + resultado.erro);
     }
@@ -586,8 +630,6 @@ function popularSelectDevEdicaoEstorno(protocoloEstornoAtual, protocoloDevAtual)
   const select = document.getElementById("edit-est-dev-select");
   select.innerHTML = `<option value="">-- Selecione a DEV concluída --</option>`;
 
-  // São elegíveis: DEVs com status "Concluída" que NÃO estejam vinculadas a outro EST ativo
-  // (a DEV já vinculada ao próprio EST em edição permanece na lista)
   const devsDisponiveis = cacheSolicitacoes.filter((s) => {
     if (s.tipo !== "DEV") return false;
     if (s.protocolo === protocoloDevAtual) return true;
@@ -615,7 +657,6 @@ function aoTrocarDevNaEdicaoEstorno() {
 
   if (novaDevProto === devAnteriorEdicaoEstorno) return;
 
-  // Limpa todos os campos do modal de edição de estorno antes de carregar a nova DEV
   document.getElementById("edit-est-loja").value = "Loja 8 - Vila Isa";
   document.getElementById("edit-est-nome").value = "";
   document.getElementById("edit-est-cpf").value = "";
@@ -721,7 +762,6 @@ async function salvarEdicaoEstorno() {
     return;
   }
 
-  // Garante que a DEV selecionada não está vinculada a outro EST ativo
   const conflitoEst = obterEstornoVinculado(
     protocoloDevolucao,
     protocoloEstornoEmEdicao
@@ -846,7 +886,7 @@ async function salvarEdicaoEstorno() {
       }
 
       document.getElementById("modal-edicao-estorno").close();
-      renderizarTabela();
+      renderizarTabela(false);
       alert(
         `Estorno ${resultado.dadosAtualizados.protocolo} atualizado com sucesso!`
       );
@@ -1436,7 +1476,10 @@ async function salvarEdicaoSolicitacao() {
     return;
   }
 
-  if (!entregueEmLoja && (!cep || !rua || !numero || !bairro || !cidade || !estado)) {
+  if (
+    !entregueEmLoja &&
+    (!cep || !rua || !numero || !bairro || !cidade || !estado)
+  ) {
     alert(
       "Preencha o endereço completo de coleta ou marque a opção 'Entregue em Loja'."
     );
@@ -1505,7 +1548,7 @@ async function salvarEdicaoSolicitacao() {
       }
 
       document.getElementById("modal-edicao").close();
-      renderizarTabela();
+      renderizarTabela(false);
       alert(
         `Solicitação ${resultado.dadosAtualizados.protocolo} atualizada com sucesso!`
       );
@@ -1815,7 +1858,7 @@ async function confirmarConclusaoConferencia() {
       }
 
       document.getElementById("modal-conferencia").close();
-      renderizarTabela();
+      renderizarTabela(false);
 
       if (solConcluida && solConcluida.tipo === "DEV") {
         const abrirEstorno = confirm(
@@ -1934,7 +1977,7 @@ async function confirmarCancelamentoModal() {
       }
 
       document.getElementById("modal-cancelamento").close();
-      renderizarTabela();
+      renderizarTabela(false);
       alert(`Solicitação ${protocoloEmCancelamento} cancelada com sucesso.`);
     } else {
       alert("Erro ao cancelar na planilha: " + resultado.erro);
@@ -1958,8 +2001,11 @@ async function reabrirSolicitacao(protocolo) {
     return;
   }
 
-  // Se estiver reabrindo um EST cancelado, verifica se a DEV dele não foi vinculada a outro EST nesse meio tempo
-  if (sol.tipo === "EST" && sol.status === "Cancelada" && sol.protocoloDevolucao) {
+  if (
+    sol.tipo === "EST" &&
+    sol.status === "Cancelada" &&
+    sol.protocoloDevolucao
+  ) {
     const devJaOcupada = obterEstornoVinculado(
       sol.protocoloDevolucao,
       sol.protocolo
@@ -1999,7 +2045,7 @@ async function reabrirSolicitacao(protocolo) {
         delete cacheSolicitacoes[indice].motivoCancelamento;
         delete cacheSolicitacoes[indice].responsavelCancelamento;
       }
-      renderizarTabela();
+      renderizarTabela(false);
       alert(
         `Solicitação ${protocolo} reaberta! O status voltou para "Em andamento".`
       );
@@ -2161,7 +2207,7 @@ Bigmais em Casa, é diferente!`;
 
     if (!sol.whatsappEnviado) {
       cacheSolicitacoes[indice].whatsappEnviado = true;
-      renderizarTabela();
+      renderizarTabela(false);
 
       fetch(URL_API_PLANILHA, {
         method: "POST",
@@ -2256,7 +2302,7 @@ Bigmais em Casa, é diferente!`;
 
   if (!sol.whatsappEnviado) {
     cacheSolicitacoes[indice].whatsappEnviado = true;
-    renderizarTabela();
+    renderizarTabela(false);
 
     fetch(URL_API_PLANILHA, {
       method: "POST",

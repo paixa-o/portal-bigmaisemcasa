@@ -1,17 +1,22 @@
-const CACHE_NAME = "portal-bigmais-v2.2.3";
+const CACHE_NAME = "portal-bigmais-v2.3.0";
 const ARQUIVOS_CACHE = [
   "./",
   "./index.html",
+  "./home.html",
   "./manifest.json",
   "./global/estilo.css",
   "./global/config.js",
-  "./global/painel.js",
+  "./global/auth.js",
   "./global/icon.svg",
   "./global/logo-bigmais.png",
-  "./devolucao/index.html",
-  "./devolucao/devolucao.js",
-  "./estorno/index.html",
-  "./estorno/estorno.js",
+  "./solicitacoes/index.html",
+  "./solicitacoes/painel.js",
+  "./solicitacoes/devolucao/index.html",
+  "./solicitacoes/devolucao/devolucao.js",
+  "./solicitacoes/estorno/index.html",
+  "./solicitacoes/estorno/estorno.js",
+  "./entregas/index.html",
+  "./entregas/entregas.js",
 ];
 
 self.addEventListener("install", (event) => {

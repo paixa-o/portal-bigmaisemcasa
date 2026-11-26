@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#d32f2f" />
+    <title>Início - Portal Bigmais em Casa</title>
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="global/icon.svg" />
+    <link rel="apple-touch-icon" href="global/icon.svg" />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      body {
+        min-height: 100vh;
+        background: radial-gradient(circle at top, #273449 0%, #0f172a 100%);
+        color: #ffffff;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 20px;
+      }
+
+      .barra-topo-home {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        backdrop-filter: blur(8px);
+        padding: 12px 18px;
+        border-radius: 10px;
+      }
+
+      .info-usuario-home {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .info-usuario-home strong {
+        font-size: 14px;
+        color: #ffffff;
+      }
+
+      .info-usuario-home span {
+        font-size: 12px;
+        color: #cbd5e1;
+      }
+
+      .btn-sair-home {
+        background-color: rgba(211, 47, 47, 0.9);
+        color: #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        padding: 8px 14px;
+        border-radius: 7px;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+
+      .btn-sair-home:hover {
+        background-color: #b71c1c;
+      }
+
+      .centro-setor {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 36px 16px;
+        gap: 28px;
+      }
+
+      .painel-logo-setor {
+        background-color: #ffffff;
+        padding: 24px 36px;
+        border-radius: 16px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+        max-width: 420px;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .painel-logo-setor img {
+        max-height: 92px;
+        width: auto;
+        max-width: 100%;
+        object-fit: contain;
+        display: block;
+      }
+
+      .painel-logo-setor span {
+        font-size: 12.5px;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        color: #b71c1c;
+      }
+
+      .grade-modulos {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 18px;
+        max-width: 620px;
+        width: 100%;
+      }
+
+      .card-modulo {
+        text-decoration: none;
+        background: rgba(255, 255, 255, 0.09);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 12px;
+        padding: 22px 20px;
+        color: #ffffff;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        text-align: left;
+        gap: 8px;
+        transition:
+          transform 0.18s,
+          background-color 0.18s,
+          border-color 0.18s;
+      }
+
+      .card-modulo:hover {
+        transform: translateY(-3px);
+        background: rgba(255, 255, 255, 0.16);
+        border-color: #f87171;
+      }
+
+      .card-modulo strong {
+        font-size: 17px;
+        color: #ffffff;
+      }
+
+      .card-modulo small {
+        font-size: 13px;
+        color: #cbd5e1;
+        line-height: 1.4;
+      }
+
+      .rodape-home {
+        text-align: center;
+        font-size: 12px;
+        color: #94a3b8;
+      }
+    </style>
+  </head>
+
+  <body>
+    <header class="barra-topo-home">
+      <div class="info-usuario-home">
+        <strong id="nome-usuario-logado">Carregando...</strong>
+        <span id="detalhe-usuario-logado"></span>
+      </div>
+      <button type="button" class="btn-sair-home" onclick="encerrarSessao('index.html')">
+        Sair
+      </button>
+    </header>
+
+    <main class="centro-setor">
+      <div class="painel-logo-setor">
+        <img src="global/logo-bigmais.png" alt="Logo do Setor - Bigmais em Casa" />
+        <span>E-Commerce • Bigmais em Casa</span>
+      </div>
+
+      <nav class="grade-modulos" aria-label="Módulos do Portal">
+        <a href="solicitacoes/index.html" class="card-modulo">
+          <strong>DEV / TRC / EST</strong>
+          <small>Devoluções, Trocas e Estornos</small>
+        </a>
+
+        <a href="entregas/index.html" class="card-modulo">
+          <strong>Entregas</strong>
+          <small>Lançamento e acompanhamento de entregas</small>
+        </a>
+      </nav>
+    </main>
+
+    <footer class="rodape-home" id="versao-home"></footer>
+
+    <script src="global/config.js"></script>
+    <script src="global/auth.js"></script>
+    <script>
+      const sessao = exigirAutenticacao("index.html");
+      if (sessao) {
+        document.getElementById("nome-usuario-logado").textContent = sessao.nome;
+        const lojasTexto =
+          sessao.lojas && sessao.lojas.length > 0
+            ? sessao.lojas.join(" • ")
+            : "";
+        document.getElementById("detalhe-usuario-logado").textContent =
+          `${sessao.cargo}${lojasTexto ? ` — ${lojasTexto}` : ""}`;
+      }
+
+      const elVersaoHome = document.getElementById("versao-home");
+      if (elVersaoHome && typeof VERSAO_PORTAL !== "undefined") {
+        elVersaoHome.textContent = `Portal Bigmais em Casa • ${VERSAO_PORTAL}`;
+      }
+    </script>
+  </body>
+</html>

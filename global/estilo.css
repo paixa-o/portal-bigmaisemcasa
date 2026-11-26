@@ -120,11 +120,13 @@ body {
 .btn-cabecalho-primario {
   background-color: #ffffff;
   color: #d32f2f;
+  border: none;
   text-decoration: none;
   padding: 9px 16px;
   border-radius: 6px;
   font-size: 14px;
   font-weight: 700;
+  cursor: pointer;
   transition: background-color 0.2s;
 }
 
@@ -286,6 +288,17 @@ body {
   color: #c2410c;
 }
 
+.badge-funcao-motorista {
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+.badge-funcao-ajudante {
+  background-color: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
 .badge-loja-entrega {
   display: inline-block;
   margin-top: 3px;
@@ -441,6 +454,45 @@ body {
 }
 
 /* =========================================================
+   PAGINAÇÃO DA TABELA INICIAL ("VER MAIS")
+   ========================================================= */
+.barra-paginacao {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.info-paginacao {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.btn-ver-mais {
+  background-color: #ffffff;
+  color: #d32f2f;
+  border: 1px solid #d32f2f;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
+}
+
+.btn-ver-mais:hover {
+  background-color: #d32f2f;
+  color: #ffffff;
+}
+
+/* =========================================================
    FORMULÁRIO E LAYOUT DUPLO
    ========================================================= */
 .container-duplo {
@@ -495,18 +547,99 @@ label {
 
 input[type="text"],
 input[type="number"],
+input[type="date"],
+input[type="month"],
 select,
 textarea {
   width: 100%;
+  height: 42px;
   padding: 10px 12px;
   margin-bottom: 15px;
   border: 1px solid #ccc;
   border-radius: 6px;
   font-size: 14px;
+  color: #333;
   background-color: #fff;
   transition:
     border-color 0.2s,
     box-shadow 0.2s;
+}
+
+textarea {
+  height: auto;
+  min-height: 84px;
+  resize: vertical;
+}
+
+input[type="date"],
+input[type="month"] {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  color: #1e293b;
+  background-color: #ffffff;
+  color-scheme: light;
+  cursor: pointer;
+}
+
+input[type="date"]:hover,
+input[type="month"]:hover {
+  border-color: #94a3b8;
+}
+
+input[type="date"]::-webkit-datetime-edit,
+input[type="month"]::-webkit-datetime-edit {
+  padding: 0;
+  color: #1e293b;
+}
+
+input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+input[type="month"]::-webkit-datetime-edit-fields-wrapper {
+  padding: 0;
+}
+
+input[type="date"]::-webkit-datetime-edit-text,
+input[type="month"]::-webkit-datetime-edit-text {
+  color: #64748b;
+  padding: 0 2px;
+}
+
+input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-day-field,
+input[type="date"]::-webkit-datetime-edit-year-field,
+input[type="month"]::-webkit-datetime-edit-month-field,
+input[type="month"]::-webkit-datetime-edit-year-field {
+  color: #1e293b;
+  font-weight: 600;
+  border-radius: 3px;
+  padding: 1px 2px;
+}
+
+input[type="date"]::-webkit-datetime-edit-month-field:focus,
+input[type="date"]::-webkit-datetime-edit-day-field:focus,
+input[type="date"]::-webkit-datetime-edit-year-field:focus,
+input[type="month"]::-webkit-datetime-edit-month-field:focus,
+input[type="month"]::-webkit-datetime-edit-year-field:focus {
+  background-color: #fee2e2;
+  color: #b71c1c;
+  outline: none;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  padding: 2px;
+  border-radius: 4px;
+  opacity: 0.75;
+  transition:
+    opacity 0.2s,
+    background-color 0.2s;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="month"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+  background-color: #ffebee;
 }
 
 input:focus,

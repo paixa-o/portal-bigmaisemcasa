@@ -1,0 +1,1294 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#d32f2f" />
+    <title>Entregas e Comissões - Portal Bigmais em Casa</title>
+    <link rel="icon" type="image/svg+xml" href="../global/icon.svg" />
+    <link rel="stylesheet" href="../global/estilo.css" />
+    <style>
+      .overlay-modal-entregas {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background-color: rgba(15, 23, 42, 0.55);
+        z-index: 10000;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        overflow-y: auto;
+      }
+
+      .overlay-modal-entregas.ativo {
+        display: flex;
+      }
+
+      .cartao-modal-entregas {
+        background-color: #ffffff;
+        width: 100%;
+        max-width: 680px;
+        border-radius: 10px;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.28);
+        padding: 24px 26px;
+        position: relative;
+        animation: surgirModal 0.16s ease-out;
+      }
+
+      @keyframes surgirModal {
+        from {
+          opacity: 0;
+          transform: translateY(-8px) scale(0.98);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      .cabecalho-modal-entregas {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #e2e8f0;
+        padding-bottom: 10px;
+        margin-bottom: 14px;
+      }
+
+      .cabecalho-modal-entregas h3 {
+        margin: 0;
+        font-size: 18px;
+        color: #d32f2f;
+      }
+
+      .btn-fechar-x {
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        color: #334155;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        font-size: 18px;
+        font-weight: 700;
+        cursor: pointer;
+        line-height: 1;
+      }
+
+      .btn-fechar-x:hover {
+        background: #fee2e2;
+        color: #b91c1c;
+        border-color: #fecaca;
+      }
+
+      .status-sincronizacao {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background-color: #f1f5f9;
+        color: #334155;
+      }
+
+      .status-sincronizacao.ok {
+        background-color: #dcfce7;
+        color: #166534;
+      }
+
+      .status-sincronizacao.carregando {
+        background-color: #fef3c7;
+        color: #92400e;
+      }
+
+      .status-sincronizacao.erro {
+        background-color: #fee2e2;
+        color: #991b1b;
+      }
+
+      .badge-status-ativo {
+        background-color: #dcfce7;
+        color: #166534;
+      }
+
+      .badge-status-inativo {
+        background-color: #f1f5f9;
+        color: #475569;
+      }
+
+      .badge-vinculo-pendente {
+        display: inline-block;
+        background-color: #fef3c7;
+        color: #92400e;
+        border: 1px solid #fde68a;
+        font-size: 10.5px;
+        font-weight: 700;
+        padding: 1px 6px;
+        border-radius: 4px;
+        margin-left: 4px;
+      }
+
+      .rodape-paginacao {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 12px;
+        padding-top: 10px;
+        border-top: 1px solid #e2e8f0;
+        font-size: 13px;
+        color: #475569;
+      }
+
+      .controles-paginacao {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .btn-paginacao {
+        background-color: #f8fafc;
+        border: 1px solid #cbd5e1;
+        color: #1e293b;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12.5px;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          background-color 0.15s,
+          border-color 0.15s;
+      }
+
+      .btn-paginacao:hover:not(:disabled) {
+        background-color: #fee2e2;
+        border-color: #fca5a5;
+        color: #b91c1c;
+      }
+
+      .btn-paginacao:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      /* =========================================================
+         SELETOR INTELIGENTE DE ENTREGADOR (BUSCA + LISTA ESTÁVEL)
+         ========================================================= */
+      .seletor-entregador-box {
+        position: relative;
+        margin-bottom: 15px;
+      }
+
+      .seletor-entregador-topo {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+        flex-wrap: wrap;
+      }
+
+      .seletor-entregador-topo label {
+        margin-bottom: 0 !important;
+      }
+
+      .pills-funcao-rapida {
+        display: inline-flex;
+        gap: 4px;
+        background: #f1f5f9;
+        padding: 2px;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+      }
+
+      .pill-funcao {
+        border: none;
+        background: transparent;
+        color: #475569;
+        font-size: 11.5px;
+        font-weight: 700;
+        padding: 3px 9px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+
+      .pill-funcao:hover {
+        color: #0f172a;
+      }
+
+      .pill-funcao.ativo {
+        background: #d32f2f;
+        color: #ffffff;
+      }
+
+      .seletor-input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+
+      .seletor-input-wrapper input[type="text"] {
+        margin-bottom: 0 !important;
+        padding-right: 64px !important;
+        font-weight: 600;
+      }
+
+      .seletor-acoes-input {
+        position: absolute;
+        right: 8px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .btn-seletor-icon {
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        color: #475569;
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+      }
+
+      .btn-seletor-icon:hover {
+        background: #fee2e2;
+        color: #b91c1c;
+        border-color: #fca5a5;
+      }
+
+      .lista-sugestoes-entregador {
+        display: none;
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: calc(100% + 4px);
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+        max-height: 250px;
+        overflow-y: auto;
+        z-index: 2500;
+      }
+
+      .lista-sugestoes-entregador.aberto {
+        display: block;
+      }
+
+      .item-sugestao-entregador {
+        padding: 9px 12px;
+        border-bottom: 1px solid #f1f5f9;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        transition: background-color 0.12s;
+      }
+
+      .item-sugestao-entregador:last-child {
+        border-bottom: none;
+      }
+
+      .item-sugestao-entregador:hover,
+      .item-sugestao-entregador.selecionado {
+        background-color: #fef2f2;
+      }
+
+      .item-sugestao-principal {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .item-sugestao-principal strong {
+        font-size: 13.5px;
+        color: #0f172a;
+      }
+
+      .item-sugestao-principal small {
+        font-size: 11.5px;
+        color: #64748b;
+      }
+
+      .item-sugestao-direita {
+        text-align: right;
+        white-space: nowrap;
+        font-size: 12px;
+        font-weight: 700;
+        color: #166534;
+      }
+
+      .cartao-entregador-escolhido {
+        margin-top: 6px;
+        padding: 6px 10px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-left: 3px solid #16a34a;
+        border-radius: 6px;
+        font-size: 12px;
+        color: #334155;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .cartao-entregador-escolhido.vazio {
+        border-left-color: #94a3b8;
+        color: #64748b;
+      }
+
+      input[type="date"],
+      input[type="month"] {
+        width: 100%;
+        height: 42px;
+        padding: 9px 12px;
+        margin-bottom: 15px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #1e293b;
+        background-color: #ffffff;
+        color-scheme: light;
+        cursor: pointer;
+        transition:
+          border-color 0.2s,
+          box-shadow 0.2s;
+      }
+
+      input[type="date"]:hover,
+      input[type="month"]:hover {
+        border-color: #94a3b8;
+      }
+
+      input[type="date"]:focus,
+      input[type="month"]:focus {
+        outline: none;
+        border-color: #d32f2f;
+        box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.12);
+      }
+
+      input[type="date"]::-webkit-calendar-picker-indicator,
+      input[type="month"]::-webkit-calendar-picker-indicator {
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+        opacity: 0.75;
+      }
+
+      input[type="date"]::-webkit-calendar-picker-indicator:hover,
+      input[type="month"]::-webkit-calendar-picker-indicator:hover {
+        opacity: 1;
+        background-color: #ffebee;
+      }
+    </style>
+  </head>
+
+  <body>
+    <header class="cabecalho-portal">
+      <div class="marca-portal">
+        <div class="logo-wrapper">
+          <img
+            src="../global/logo-bigmais.png"
+            alt="Logo Bigmais em Casa"
+            class="logo-portal"
+          />
+        </div>
+        <div>
+          <h1>Portal Bigmais em Casa</h1>
+          <span>Lançamento de Entregas, Equipe e Comissões</span>
+        </div>
+      </div>
+
+      <div class="acoes-cabecalho">
+        <span
+          id="badge-versao-portal"
+          class="badge-versao-cabecalho"
+          title="Versão atual do Portal"
+        ></span>
+        <a href="../home.html" class="btn-cabecalho-secundario">
+          ← Voltar ao Início
+        </a>
+        <button
+          type="button"
+          id="btn-topo-cadastrar-entregador"
+          class="btn-cabecalho-primario"
+          onclick="abrirModalEntregador()"
+        >
+          + Cadastrar Entregador
+        </button>
+      </div>
+    </header>
+
+    <div class="grid-kpis">
+      <div class="card-kpi">
+        <span class="kpi-titulo">Entregas no Dia</span>
+        <strong class="kpi-valor" id="kpi-entregas-dia">0</strong>
+      </div>
+      <div class="card-kpi kpi-andamento">
+        <span class="kpi-titulo">Total Comissão do Dia</span>
+        <strong class="kpi-valor" id="kpi-comissao-dia">R$ 0,00</strong>
+      </div>
+      <div class="card-kpi kpi-concluida">
+        <span class="kpi-titulo">Comissão no Período</span>
+        <strong class="kpi-valor" id="kpi-comissao-periodo">R$ 0,00</strong>
+      </div>
+      <div class="card-kpi">
+        <span class="kpi-titulo">Entregadores Ativos</span>
+        <strong class="kpi-valor" id="kpi-total-entregadores">0</strong>
+      </div>
+    </div>
+
+    <!-- LANÇAMENTO DE ENTREGAS -->
+    <div class="secao">
+      <div class="cabecalho-tabela" style="margin-bottom: 10px">
+        <h3 style="margin: 0">Lançamento de Entregas</h3>
+        <div style="display: flex; align-items: center; gap: 8px">
+          <span id="status-banco-entregas" class="status-sincronizacao">
+            Banco: aguardando...
+          </span>
+          <button
+            type="button"
+            class="btn-azul"
+            style="padding: 6px 12px; font-size: 12.5px"
+            onclick="sincronizarComBanco(true)"
+          >
+            ↻ Atualizar Dados
+          </button>
+        </div>
+      </div>
+
+      <form id="form-lancamento-entrega" onsubmit="salvarLancamentoEntrega(event)">
+        <div class="linha-campo">
+          <div class="campo">
+            <label for="entrega-data" class="obrigatorio">Data:</label>
+            <input
+              type="date"
+              id="entrega-data"
+              required
+              onchange="renderizarTudo()"
+            />
+          </div>
+
+          <div class="campo">
+            <label for="entrega-loja" class="obrigatorio">Loja:</label>
+            <select id="entrega-loja" required>
+              <option value="">-- Selecione a loja --</option>
+              <option value="Loja 8 - Vila Isa">Loja 8 - Vila Isa</option>
+              <option value="Loja 9 - São Pedro">Loja 9 - São Pedro</option>
+            </select>
+          </div>
+
+          <div class="campo" style="grid-column: span 2">
+            <div class="seletor-entregador-box" id="box-seletor-lancamento">
+              <div class="seletor-entregador-topo">
+                <label for="busca-entregador-lancamento" class="obrigatorio">
+                  Entregador (Motorista / Ajudante):
+                </label>
+                <div class="pills-funcao-rapida" role="group" aria-label="Filtrar função">
+                  <button
+                    type="button"
+                    class="pill-funcao ativo"
+                    data-funcao="TODOS"
+                    onclick="definirFiltroFuncaoLancamento('TODOS')"
+                  >
+                    Todos
+                  </button>
+                  <button
+                    type="button"
+                    class="pill-funcao"
+                    data-funcao="Motorista"
+                    onclick="definirFiltroFuncaoLancamento('Motorista')"
+                  >
+                    Motoristas
+                  </button>
+                  <button
+                    type="button"
+                    class="pill-funcao"
+                    data-funcao="Ajudante"
+                    onclick="definirFiltroFuncaoLancamento('Ajudante')"
+                  >
+                    Ajudantes
+                  </button>
+                </div>
+              </div>
+
+              <input type="hidden" id="entrega-entregador" />
+
+              <div class="seletor-input-wrapper">
+                <input
+                  type="text"
+                  id="busca-entregador-lancamento"
+                  placeholder="Clique ou digite o nome / CHAPA..."
+                  autocomplete="off"
+                  onfocus="abrirListaLancamento()"
+                  oninput="filtrarListaLancamento()"
+                />
+                <div class="seletor-acoes-input">
+                  <button
+                    type="button"
+                    class="btn-seletor-icon"
+                    title="Limpar seleção"
+                    onclick="limparSelecaoLancamento()"
+                  >
+                    ×
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-seletor-icon"
+                    title="Mostrar lista"
+                    onclick="alternarListaLancamento()"
+                  >
+                    ▾
+                  </button>
+                </div>
+              </div>
+
+              <div
+                id="lista-sugestoes-lancamento"
+                class="lista-sugestoes-entregador"
+              ></div>
+
+              <div
+                id="resumo-entregador-lancamento"
+                class="cartao-entregador-escolhido vazio"
+              >
+                Nenhum entregador selecionado.
+              </div>
+            </div>
+          </div>
+
+          <div class="campo">
+            <label for="entrega-quantidade" class="obrigatorio">
+              Qtd. de Entregas:
+            </label>
+            <input
+              type="number"
+              id="entrega-quantidade"
+              min="1"
+              step="1"
+              placeholder="0"
+              required
+              oninput="atualizarPreviaComissao()"
+            />
+          </div>
+
+          <div class="campo">
+            <label for="entrega-previa-comissao">Comissão deste Lançamento:</label>
+            <input
+              type="text"
+              id="entrega-previa-comissao"
+              class="campo-automatico"
+              value="R$ 0,00"
+              readonly
+            />
+          </div>
+        </div>
+
+        <div class="linha-campo" style="align-items: center">
+          <div class="campo" style="grid-column: span 2">
+            <label for="entrega-lancado-por">Lançado por:</label>
+            <input
+              type="text"
+              id="entrega-lancado-por"
+              class="campo-automatico"
+              readonly
+            />
+          </div>
+
+          <div class="campo" style="grid-column: span 2">
+            <label for="entrega-observacao">Observação (opcional):</label>
+            <input
+              type="text"
+              id="entrega-observacao"
+              placeholder="Ex: Rota manhã, apoio em carga..."
+            />
+          </div>
+
+          <div style="display: flex; gap: 10px; justify-content: flex-end; margin-bottom: 15px">
+            <button type="submit" id="btn-lancar-entrega" class="btn-salvar-principal">
+              + Lançar Entregas
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- HISTÓRICO DE LANÇAMENTOS -->
+    <div class="secao">
+      <div class="cabecalho-tabela">
+        <h3>Histórico de Lançamentos</h3>
+      </div>
+
+      <div class="barra-filtros">
+        <div class="campo">
+          <label for="filtro-data-inicio">Data Inicial:</label>
+          <input
+            type="date"
+            id="filtro-data-inicio"
+            onchange="aoAlterarPeriodoFiltro()"
+          />
+        </div>
+
+        <div class="campo">
+          <label for="filtro-data-fim">Data Final:</label>
+          <input
+            type="date"
+            id="filtro-data-fim"
+            onchange="aoAlterarPeriodoFiltro()"
+          />
+        </div>
+
+        <div class="campo">
+          <label for="filtro-loja-historico">Loja:</label>
+          <select id="filtro-loja-historico" onchange="aoAlterarLojaFiltro()">
+            <option value="TODAS">Todas as Lojas</option>
+            <option value="Loja 8 - Vila Isa">Loja 8 - Vila Isa</option>
+            <option value="Loja 9 - São Pedro">Loja 9 - São Pedro</option>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label for="filtro-funcao-historico">Função:</label>
+          <select
+            id="filtro-funcao-historico"
+            onchange="paginaHistorico = 1; renderizarHistorico();"
+          >
+            <option value="TODOS">Todas as Funções</option>
+            <option value="Motorista">Motorista</option>
+            <option value="Ajudante">Ajudante</option>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label for="ordem-data-historico">Ordenar por Data:</label>
+          <select
+            id="ordem-data-historico"
+            onchange="paginaHistorico = 1; renderizarHistorico();"
+          >
+            <option value="DESC">Mais recentes primeiro</option>
+            <option value="ASC">Mais antigos primeiro</option>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label for="filtro-busca-historico">Buscar Entregador / Chapa:</label>
+          <input
+            type="text"
+            id="filtro-busca-historico"
+            placeholder="Nome ou CHAPA..."
+            oninput="paginaHistorico = 1; renderizarHistorico();"
+          />
+        </div>
+      </div>
+
+      <div class="tabela-wrapper">
+        <table class="tabela-solicitacoes">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Nome do Entregador</th>
+              <th>Entregas</th>
+              <th>Valor da Comissão</th>
+              <th>Valor Total do Dia</th>
+              <th>Lançado por</th>
+              <th style="text-align: right">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="corpo-tabela-historico"></tbody>
+        </table>
+      </div>
+
+      <div id="paginacao-historico" class="rodape-paginacao"></div>
+    </div>
+
+    <!-- RELATÓRIO DE USO DO SETOR (PDF - GERAL OU INDIVIDUAL) -->
+    <div class="secao">
+      <h3>Relatório de Uso do Setor (PDF)</h3>
+      <p style="font-size: 13px; color: #555; margin-bottom: 14px">
+        Gere um relatório interno em <strong>PDF</strong> utilizando o período definido em <strong>Data Inicial</strong> e <strong>Data Final</strong> acima, podendo emitir o consolidado geral ou o extrato individual de cada entregador.
+      </p>
+
+      <div class="linha-campo" style="align-items: start">
+        <div class="campo">
+          <label for="pdf-loja">Loja:</label>
+          <select id="pdf-loja">
+            <option value="TODAS">Todas as Lojas</option>
+            <option value="Loja 8 - Vila Isa">Loja 8 - Vila Isa</option>
+            <option value="Loja 9 - São Pedro">Loja 9 - São Pedro</option>
+          </select>
+        </div>
+
+        <div class="campo" style="grid-column: span 2">
+          <div class="seletor-entregador-box" id="box-seletor-pdf">
+            <div class="seletor-entregador-topo">
+              <label for="busca-entregador-pdf">
+                Entregador (Geral ou Individual):
+              </label>
+            </div>
+
+            <input type="hidden" id="pdf-entregador" value="TODOS" />
+
+            <div class="seletor-input-wrapper">
+              <input
+                type="text"
+                id="busca-entregador-pdf"
+                value="Todos os Entregadores (Relatório Geral)"
+                placeholder="Digite o nome ou CHAPA para filtrar..."
+                autocomplete="off"
+                onfocus="abrirListaPDF(true)"
+                oninput="filtrarListaPDF()"
+              />
+              <div class="seletor-acoes-input">
+                <button
+                  type="button"
+                  class="btn-seletor-icon"
+                  title="Voltar para Relatório Geral"
+                  onclick="selecionarEntregadorPDF('TODOS')"
+                >
+                  ×
+                </button>
+                <button
+                  type="button"
+                  class="btn-seletor-icon"
+                  title="Mostrar opções"
+                  onclick="alternarListaPDF()"
+                >
+                  ▾
+                </button>
+              </div>
+            </div>
+
+            <div
+              id="lista-sugestoes-pdf"
+              class="lista-sugestoes-entregador"
+            ></div>
+          </div>
+        </div>
+
+        <div class="campo">
+          <label for="pdf-periodo-resumo">Período do Relatório:</label>
+          <input
+            type="text"
+            id="pdf-periodo-resumo"
+            class="campo-automatico"
+            readonly
+          />
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 6px">
+        <button
+          type="button"
+          class="btn-azul"
+          style="padding: 10px 18px; font-size: 14px"
+          onclick="gerarRelatorioSetorPDF()"
+        >
+          Gerar Relatório do Setor (PDF)
+        </button>
+      </div>
+    </div>
+
+    <!-- RELATÓRIO MENSAL PARA RH (XML + E-MAIL POR LOJA) -->
+    <div class="secao">
+      <h3>Relatório Mensal para Pagamento de Comissão — RH (XML + E-mail por Loja)</h3>
+      <p style="font-size: 13px; color: #555; margin-bottom: 14px">
+        Selecione a <strong>loja</strong> e o <strong>mês de referência</strong> para gerar o arquivo <strong>XML</strong> e preparar a mensagem de e-mail para o setor de RH.
+      </p>
+
+      <div class="linha-campo" style="align-items: end">
+        <div class="campo">
+          <label for="relatorio-loja" class="obrigatorio">Loja:</label>
+          <select
+            id="relatorio-loja"
+            onchange="atualizarPreviaRelatorioRH()"
+          >
+            <option value="Loja 8 - Vila Isa">Loja 8 - Vila Isa</option>
+            <option value="Loja 9 - São Pedro">Loja 9 - São Pedro</option>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label for="relatorio-mes" class="obrigatorio">Mês de Referência:</label>
+          <input
+            type="month"
+            id="relatorio-mes"
+            onchange="atualizarPreviaRelatorioRH()"
+          />
+        </div>
+
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; grid-column: span 2">
+          <button
+            type="button"
+            class="btn-salvar-principal"
+            style="padding: 10px 16px; font-size: 14px"
+            onclick="gerarEbaixarRelatorioXML()"
+          >
+            Gerar e Baixar XML + E-mail (RH)
+          </button>
+          <button
+            type="button"
+            class="btn-azul"
+            style="padding: 10px 14px; font-size: 13.5px"
+            onclick="abrirModalEmailRelatorio()"
+          >
+            Ver Mensagem de E-mail
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ENTREGADORES CADASTRADOS -->
+    <div class="secao">
+      <div class="cabecalho-produtos">
+        <h3>Entregadores Cadastrados</h3>
+        <button
+          type="button"
+          id="btn-secao-novo-entregador"
+          class="btn-azul"
+          onclick="abrirModalEntregador()"
+        >
+          + Novo Entregador
+        </button>
+      </div>
+
+      <div class="barra-filtros" style="margin-bottom: 12px">
+        <div class="campo">
+          <label for="filtro-status-entregadores">Situação:</label>
+          <select
+            id="filtro-status-entregadores"
+            onchange="paginaEntregadores = 1; renderizarTabelaEntregadores();"
+          >
+            <option value="Ativo">Somente Ativos</option>
+            <option value="Inativo">Somente Inativos</option>
+            <option value="TODOS">Todos (Ativos e Inativos)</option>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label for="filtro-funcao-entregadores">Função:</label>
+          <select
+            id="filtro-funcao-entregadores"
+            onchange="paginaEntregadores = 1; renderizarTabelaEntregadores();"
+          >
+            <option value="TODOS">Todas as Funções</option>
+            <option value="Motorista">Motorista</option>
+            <option value="Ajudante">Ajudante</option>
+          </select>
+        </div>
+
+        <div class="campo" style="grid-column: span 2">
+          <label for="filtro-busca-entregadores">Buscar Entregador:</label>
+          <input
+            type="text"
+            id="filtro-busca-entregadores"
+            placeholder="Nome, CHAPA ou CPF..."
+            oninput="paginaEntregadores = 1; renderizarTabelaEntregadores();"
+          />
+        </div>
+      </div>
+
+      <div class="tabela-wrapper">
+        <table class="tabela-solicitacoes">
+          <thead>
+            <tr>
+              <th>CHAPA</th>
+              <th>Nome</th>
+              <th>Função</th>
+              <th>Situação</th>
+              <th>Telefone</th>
+              <th>CPF</th>
+              <th>Tarifa / Entrega</th>
+              <th style="text-align: right">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="corpo-tabela-entregadores"></tbody>
+        </table>
+      </div>
+
+      <div id="paginacao-entregadores" class="rodape-paginacao"></div>
+    </div>
+
+    <!-- MODAL DE EDIÇÃO / VINCULAÇÃO DE LANÇAMENTO DE ENTREGA -->
+    <div
+      id="modal-editar-lancamento"
+      class="overlay-modal-entregas"
+      onclick="if (event.target === this) fecharModalEditarLancamento();"
+    >
+      <div class="cartao-modal-entregas">
+        <div class="cabecalho-modal-entregas">
+          <h3 style="color: #0284c7">Editar / Vincular Lançamento de Entrega</h3>
+          <button
+            type="button"
+            class="btn-fechar-x"
+            title="Fechar"
+            onclick="fecharModalEditarLancamento()"
+          >
+            ×
+          </button>
+        </div>
+
+        <p style="font-size: 13px; color: #64748b; margin-bottom: 14px">
+          Vincule este lançamento a um entregador cadastrado para atualizar CHAPA, função e comissão automaticamente, ou ajuste data, loja e quantidade.
+        </p>
+
+        <form id="form-editar-lancamento" onsubmit="salvarEdicaoLancamento(event)">
+          <input type="hidden" id="edit-lanc-id" />
+
+          <div class="seletor-entregador-box" id="box-seletor-edicao-lanc">
+            <div class="seletor-entregador-topo">
+              <label for="busca-entregador-edicao" class="obrigatorio">
+                Vincular ao Entregador Cadastrado:
+              </label>
+            </div>
+
+            <input type="hidden" id="edit-lanc-entregador-id" />
+
+            <div class="seletor-input-wrapper">
+              <input
+                type="text"
+                id="busca-entregador-edicao"
+                placeholder="Digite o nome ou CHAPA do entregador..."
+                autocomplete="off"
+                onfocus="abrirListaEdicaoLanc(true)"
+                oninput="filtrarListaEdicaoLanc()"
+              />
+              <div class="seletor-acoes-input">
+                <button
+                  type="button"
+                  class="btn-seletor-icon"
+                  title="Mostrar entregadores"
+                  onclick="alternarListaEdicaoLanc()"
+                >
+                  ▾
+                </button>
+              </div>
+            </div>
+
+            <div
+              id="lista-sugestoes-edicao-lanc"
+              class="lista-sugestoes-entregador"
+            ></div>
+
+            <div
+              id="resumo-entregador-edicao-lanc"
+              class="cartao-entregador-escolhido vazio"
+            >
+              Nenhum entregador vinculado.
+            </div>
+          </div>
+
+          <div class="linha-campo">
+            <div class="campo">
+              <label for="edit-lanc-data" class="obrigatorio">Data:</label>
+              <input type="date" id="edit-lanc-data" required />
+            </div>
+
+            <div class="campo">
+              <label for="edit-lanc-loja" class="obrigatorio">Loja:</label>
+              <select id="edit-lanc-loja" required>
+                <option value="Loja 8 - Vila Isa">Loja 8 - Vila Isa</option>
+                <option value="Loja 9 - São Pedro">Loja 9 - São Pedro</option>
+              </select>
+            </div>
+
+            <div class="campo">
+              <label for="edit-lanc-quantidade" class="obrigatorio">
+                Qtd. de Entregas:
+              </label>
+              <input
+                type="number"
+                id="edit-lanc-quantidade"
+                min="1"
+                step="1"
+                required
+                oninput="atualizarPreviaEdicaoLancamento()"
+              />
+            </div>
+          </div>
+
+          <div class="linha-campo">
+            <div class="campo">
+              <label for="edit-lanc-tarifa">Tarifa Unitária (R$):</label>
+              <input
+                type="text"
+                id="edit-lanc-tarifa"
+                oninput="mascaraMoedaEntrega(this); atualizarPreviaEdicaoLancamento();"
+                required
+              />
+            </div>
+
+            <div class="campo">
+              <label for="edit-lanc-comissao">Comissão Total:</label>
+              <input
+                type="text"
+                id="edit-lanc-comissao"
+                class="campo-automatico"
+                readonly
+              />
+            </div>
+
+            <div class="campo">
+              <label for="edit-lanc-observacao">Observação:</label>
+              <input
+                type="text"
+                id="edit-lanc-observacao"
+                placeholder="Observação..."
+              />
+            </div>
+          </div>
+
+          <div class="modal-botoes">
+            <button
+              type="button"
+              class="btn-cancelar"
+              onclick="fecharModalEditarLancamento()"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              id="btn-salvar-edicao-lancamento"
+              class="btn-salvar-principal"
+              style="padding: 9px 18px; font-size: 14px"
+            >
+              Salvar Alterações
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL DE CADASTRO E EDIÇÃO DE ENTREGADOR -->
+    <div
+      id="modal-entregador"
+      class="overlay-modal-entregas"
+      onclick="if (event.target === this) fecharModalEntregador();"
+    >
+      <div class="cartao-modal-entregas">
+        <div class="cabecalho-modal-entregas">
+          <h3 id="titulo-modal-entregador">Cadastrar Entregador</h3>
+          <button
+            type="button"
+            class="btn-fechar-x"
+            title="Fechar"
+            onclick="fecharModalEntregador()"
+          >
+            ×
+          </button>
+        </div>
+
+        <p style="font-size: 13px; color: #64748b; margin-bottom: 16px">
+          Informe os dados do motorista ou ajudante, situação no setor e valor da comissão por entrega.
+        </p>
+
+        <form id="form-entregador" onsubmit="salvarEntregador(event)">
+          <input type="hidden" id="entregador-id-edicao" />
+
+          <div class="linha-campo">
+            <div class="campo" style="grid-column: span 2">
+              <label for="ent-nome" class="obrigatorio">Nome Completo:</label>
+              <input
+                type="text"
+                id="ent-nome"
+                placeholder="Ex: Carlos Eduardo Souza"
+                required
+              />
+            </div>
+
+            <div class="campo">
+              <label for="ent-chapa" class="obrigatorio">CHAPA:</label>
+              <input
+                type="text"
+                id="ent-chapa"
+                placeholder="Ex: 00412"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="linha-campo">
+            <div class="campo">
+              <label for="ent-funcao" class="obrigatorio">Função:</label>
+              <select id="ent-funcao" required>
+                <option value="Motorista">Motorista</option>
+                <option value="Ajudante">Ajudante</option>
+              </select>
+            </div>
+
+            <div class="campo">
+              <label for="ent-status" class="obrigatorio">Situação no Setor:</label>
+              <select id="ent-status" required>
+                <option value="Ativo">Ativo</option>
+                <option value="Inativo">Inativo</option>
+              </select>
+            </div>
+
+            <div class="campo">
+              <label for="ent-tarifa" class="obrigatorio">
+                Tarifa / Entrega (R$):
+              </label>
+              <input
+                type="text"
+                id="ent-tarifa"
+                placeholder="R$ 0,00"
+                oninput="mascaraMoedaEntrega(this)"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="linha-campo">
+            <div class="campo">
+              <label for="ent-cpf" class="obrigatorio">CPF:</label>
+              <input
+                type="text"
+                id="ent-cpf"
+                placeholder="000.000.000-00"
+                maxlength="14"
+                oninput="mascaraCPFEntrega(this)"
+                onblur="verificarCPFEntrega(this)"
+                required
+              />
+            </div>
+
+            <div class="campo">
+              <label for="ent-telefone" class="obrigatorio">Telefone:</label>
+              <input
+                type="text"
+                id="ent-telefone"
+                placeholder="(33) 99999-9999"
+                maxlength="15"
+                oninput="mascaraTelefoneEntrega(this)"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="modal-botoes">
+            <button
+              type="button"
+              class="btn-limpar-modal"
+              onclick="limparCamposEntregadorModal()"
+            >
+              Limpar Campos
+            </button>
+            <button
+              type="button"
+              class="btn-cancelar"
+              onclick="fecharModalEntregador()"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              id="btn-salvar-entregador"
+              class="btn-salvar-principal"
+              style="padding: 9px 18px; font-size: 14px"
+            >
+              Salvar Entregador
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL MENSAGEM SIMPLES DE E-MAIL (XML POR LOJA - RH) -->
+    <div
+      id="modal-email-comissao"
+      class="overlay-modal-entregas"
+      onclick="if (event.target === this) fecharModalEmailComissao();"
+    >
+      <div class="cartao-modal-entregas" style="max-width: 680px">
+        <div class="cabecalho-modal-entregas">
+          <h3 id="titulo-modal-email-comissao" style="color: #0284c7">
+            Mensagem de E-mail — Relatório de Comissão (XML)
+          </h3>
+          <button
+            type="button"
+            class="btn-fechar-x"
+            title="Fechar"
+            onclick="fecharModalEmailComissao()"
+          >
+            ×
+          </button>
+        </div>
+
+        <p style="font-size: 13px; color: #555; margin-bottom: 12px">
+          Anexe o arquivo XML da loja selecionada ao e-mail e copie a mensagem abaixo.
+        </p>
+
+        <div class="campo">
+          <label for="email-comissao-assunto">Assunto:</label>
+          <input
+            type="text"
+            id="email-comissao-assunto"
+            readonly
+            class="campo-automatico"
+            style="margin-bottom: 10px"
+          />
+        </div>
+
+        <div class="campo">
+          <label for="email-comissao-corpo">Mensagem:</label>
+          <textarea
+            id="email-comissao-corpo"
+            rows="10"
+            readonly
+            style="
+              height: auto;
+              background-color: #f8fafc;
+              font-family: monospace;
+              font-size: 12.5px;
+              line-height: 1.45;
+            "
+          ></textarea>
+        </div>
+
+        <div class="modal-botoes">
+          <button
+            type="button"
+            class="btn-azul"
+            id="btn-copiar-email-comissao"
+            onclick="copiarMensagemComissao()"
+          >
+            Copiar Mensagem
+          </button>
+          <button
+            type="button"
+            class="btn-cancelar"
+            onclick="fecharModalEmailComissao()"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <footer class="rodape-portal">
+      <span>Portal Bigmais em Casa</span>
+      <span id="versao-sistema"></span>
+    </footer>
+
+    <script src="../global/config.js"></script>
+    <script src="../global/auth.js"></script>
+    <script>
+      if (typeof exigirAutenticacao === "function") {
+        exigirAutenticacao("../index.html");
+      }
+    </script>
+    <script src="entregas.js"></script>
+  </body>
+</html>
