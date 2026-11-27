@@ -1,0 +1,25 @@
+
+name: Sincronizar com Bigmais
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+jobs:
+  sincronizar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar repositório pessoal
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sincronizar com Bigmais
+        run: |
+          git remote add bigmais https://x-access-token:${{ secrets.BIGMAIS_TOKEN }}@github.com/bigmaisemcasa/portal-bigmaisemcasa.git
+          git push bigmais --all
+          git push bigmais --tags
