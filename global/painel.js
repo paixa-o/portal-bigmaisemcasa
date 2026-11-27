@@ -7,17 +7,14 @@ let compraInteiraEmConferencia = false;
 let protocoloEmCancelamento = null;
 let ultimoCodigoConferencia = "";
 
-
 // Variáveis para Edição de DEV/TRC
 let protocoloEmEdicao = null;
 let itensEmEdicao = [];
 let ultimoCodigoEdicao = "";
 
-
 // Variáveis para Edição de EST
 let protocoloEstornoEmEdicao = null;
 let devAnteriorEdicaoEstorno = "";
-
 
 // Prioridade de exibição dos status na tabela (usada após a data de solicitação)
 const PRIORIDADE_STATUS_TABELA = {
@@ -27,11 +24,9 @@ const PRIORIDADE_STATUS_TABELA = {
   "Cancelada": 4,
 };
 
-
 function parseDataSolicitacao(dataStr) {
   if (!dataStr) return 0;
   const texto = String(dataStr).trim();
-
 
   // Suporta formatos como "25/11/2026 às 15:38", "25/11/2026 15:38:00" ou "25/11/2026"
   const matchData = texto.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
@@ -40,31 +35,25 @@ function parseDataSolicitacao(dataStr) {
     return Number.isNaN(timestampDireto) ? 0 : timestampDireto;
   }
 
-
   const dia = parseInt(matchData[1], 10);
   const mes = parseInt(matchData[2], 10) - 1;
   const ano = parseInt(matchData[3], 10);
 
-
   const restoTexto = texto.slice(matchData.index + matchData[0].length);
   const matchHora = restoTexto.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
-
 
   const hora = matchHora ? parseInt(matchHora[1], 10) : 0;
   const minuto = matchHora ? parseInt(matchHora[2], 10) : 0;
   const segundo = matchHora && matchHora[3] ? parseInt(matchHora[3], 10) : 0;
 
-
   return new Date(ano, mes, dia, hora, minuto, segundo).getTime() || 0;
 }
-
 
 function extrairNumeroSequencial(sol) {
   const origem = sol.id || sol.protocolo || "";
   const trechoFinal = String(origem).split("-").pop();
   return parseInt(String(trechoFinal || "").replace(/\D/g, ""), 10) || 0;
 }
-
 
 function ordenarSolicitacoesTabela(lista) {
   return [...lista].sort((a, b) => {
@@ -74,24 +63,20 @@ function ordenarSolicitacoesTabela(lista) {
       parseDataSolicitacao(a.dataSolicitacao);
     if (diffData !== 0) return diffData;
 
-
     // 2º critério: Status
     const pesoA = PRIORIDADE_STATUS_TABELA[a.status] ?? 99;
     const pesoB = PRIORIDADE_STATUS_TABELA[b.status] ?? 99;
     if (pesoA !== pesoB) return pesoA - pesoB;
-
 
     // Desempate final: número sequencial do protocolo
     return extrairNumeroSequencial(b) - extrairNumeroSequencial(a);
   });
 }
 
-
 function verMaisSolicitacoes() {
   limiteExibicaoTabela += TAMANHO_LOTE_TABELA;
   renderizarTabela(false);
 }
-
 
 // Preenche selo e rodapé com a versão atual do config.js
 const badgeVersao = document.getElementById("badge-versao-portal");
@@ -103,17 +88,17 @@ if (elVersaoRodape && typeof VERSAO_PORTAL !== "undefined") {
   elVersaoRodape.textContent = `Versão ${VERSAO_PORTAL}`;
 }
 
-
 // Fecha qualquer menu de três pontinhos aberto ao clicar fora, rolar ou redimensionar
 let bloqueioScrollDropdownAte = 0;
 
-
 document.addEventListener("click", (event) => {
-  if (!event.target.closest(".menu-tres-pontinhos-wrapper")) {
+  if (
+    !event.target.closest(".menu-tres-pontinhos-wrapper") &&
+    !event.target.closest(".dropdown-acoes")
+  ) {
     fecharTodosMenusDropdown();
   }
 });
-
 
 window.addEventListener(
   "scroll",
@@ -124,9 +109,7 @@ window.addEventListener(
   true
 );
 
-
 window.addEventListener("resize", fecharTodosMenusDropdown);
-
 
 function fecharTodosMenusDropdown() {
   document.querySelectorAll(".dropdown-acoes.aberto").forEach((menu) => {
@@ -135,30 +118,24 @@ function fecharTodosMenusDropdown() {
   });
 }
 
-
 function alternarMenuDropdown(event, protocolo) {
   event.stopPropagation();
   const botao = event.currentTarget;
   const menuAlvo = document.getElementById(`dropdown-${protocolo}`);
   const estavaAberto = menuAlvo && menuAlvo.classList.contains("aberto");
 
-
   fecharTodosMenusDropdown();
-
 
   if (menuAlvo && !estavaAberto) {
     bloqueioScrollDropdownAte = Date.now() + 180;
     menuAlvo.style.display = "block";
     menuAlvo.classList.add("aberto");
 
-
     const rectBotao = botao.getBoundingClientRect();
     const rectMenu = menuAlvo.getBoundingClientRect();
 
-
-    const larguraMenu = rectMenu.width || 210;
+    const larguraMenu = rectMenu.width || 225;
     const alturaMenu = rectMenu.height || 220;
-
 
     let left = rectBotao.right - larguraMenu;
     if (left < 10) left = 10;
@@ -166,18 +143,15 @@ function alternarMenuDropdown(event, protocolo) {
       left = Math.max(10, window.innerWidth - larguraMenu - 10);
     }
 
-
     let top = rectBotao.bottom + 4;
     if (top + alturaMenu > window.innerHeight - 10) {
       top = Math.max(10, rectBotao.top - alturaMenu - 4);
     }
 
-
     menuAlvo.style.left = `${Math.round(left)}px`;
     menuAlvo.style.top = `${Math.round(top)}px`;
   }
 }
-
 
 /**
  * Retorna o Estorno ativo (não cancelado) vinculado a uma DEV.
@@ -193,7 +167,6 @@ function obterEstornoVinculado(protocoloDev, ignorarProtocoloEst = "") {
   );
 }
 
-
 function atualizarKPIs(lista) {
   const total = lista.length;
   const emAndamento = lista.filter(
@@ -202,21 +175,17 @@ function atualizarKPIs(lista) {
   const concluidas = lista.filter((s) => s.status === "Concluída").length;
   const canceladas = lista.filter((s) => s.status === "Cancelada").length;
 
-
   document.getElementById("kpi-total").textContent = total;
   document.getElementById("kpi-andamento").textContent = emAndamento;
   document.getElementById("kpi-concluida").textContent = concluidas;
   document.getElementById("kpi-cancelada").textContent = canceladas;
 }
 
-
 async function carregarSolicitacoesDaPlanilha() {
   const corpoTabela = document.getElementById("corpo-tabela-solicitacoes");
   if (!corpoTabela) return;
 
-
   limiteExibicaoTabela = TAMANHO_LOTE_TABELA;
-
 
   if (
     typeof URL_API_PLANILHA === "undefined" ||
@@ -227,20 +196,16 @@ async function carregarSolicitacoesDaPlanilha() {
     return;
   }
 
-
   corpoTabela.innerHTML =
     '<tr><td colspan="9" style="text-align:center; padding:25px; color:#64748b;">Sincronizando solicitações com a Planilha Google...</td></tr>';
-
 
   try {
     const separador = URL_API_PLANILHA.includes("?") ? "&" : "?";
     const resposta = await fetch(`${URL_API_PLANILHA}${separador}t=${Date.now()}`);
 
-
     if (!resposta.ok) {
       throw new Error(`HTTP ${resposta.status} (${resposta.statusText})`);
     }
-
 
     const texto = await resposta.text();
     let dados;
@@ -251,7 +216,6 @@ async function carregarSolicitacoesDaPlanilha() {
         "Resposta não é JSON válido. Verifique se a URL em global/config.js está correta e publicada como 'Qualquer pessoa'."
       );
     }
-
 
     if (dados.sucesso) {
       cacheSolicitacoes = Array.isArray(dados.solicitacoes)
@@ -274,12 +238,10 @@ async function carregarSolicitacoesDaPlanilha() {
   }
 }
 
-
 function renderizarTabela(resetarLimite = true) {
   if (resetarLimite) {
     limiteExibicaoTabela = TAMANHO_LOTE_TABELA;
   }
-
 
   const termoBusca = document
     .getElementById("filtro-busca")
@@ -288,16 +250,13 @@ function renderizarTabela(resetarLimite = true) {
   const termoSemHifen = termoBusca.replace(/[-\s]/g, "");
   const termoLimpoNumeros = termoBusca.replace(/\D/g, "");
 
-
   const filtroLoja = document.getElementById("filtro-loja").value;
   const filtroTipo = document.getElementById("filtro-tipo").value;
   const filtroStatus = document.getElementById("filtro-status").value;
 
-
   const listaValida = cacheSolicitacoes.filter(
     (item) => item && typeof item === "object" && item.protocolo
   );
-
 
   const listaPorLoja =
     filtroLoja === "TODOS"
@@ -305,23 +264,19 @@ function renderizarTabela(resetarLimite = true) {
       : listaValida.filter((item) => String(item.loja || "") === filtroLoja);
   atualizarKPIs(listaPorLoja);
 
-
   const filtradas = listaValida.filter((item) => {
     const lojaStr = String(item.loja || "");
     const tipoStr = String(item.tipo || "");
     const statusStr = String(item.status || "");
 
-
     const bateLoja = filtroLoja === "TODOS" || lojaStr === filtroLoja;
     const bateTipo = filtroTipo === "TODOS" || tipoStr === filtroTipo;
     const bateStatus = filtroStatus === "TODOS" || statusStr === filtroStatus;
-
 
     const protocoloStr = String(item.protocolo || "");
     const protocoloLower = protocoloStr.toLowerCase();
     const protocoloSemHifen = protocoloLower.replace(/[-\s]/g, "");
     const protocoloApenasNumeros = protocoloStr.replace(/\D/g, "");
-
 
     const pedidoStr = String(item.numeroPedido || "");
     const clienteObj = item.cliente || {};
@@ -329,10 +284,8 @@ function renderizarTabela(resetarLimite = true) {
     const cpfClienteStr = String(clienteObj.cpf || "");
     const telClienteStr = String(clienteObj.telefone || "");
 
-
     const cpfLimpo = cpfClienteStr.replace(/\D/g, "");
     const telefoneLimpo = telClienteStr.replace(/\D/g, "");
-
 
     const bateBusca =
       termoBusca === "" ||
@@ -347,16 +300,13 @@ function renderizarTabela(resetarLimite = true) {
         (cpfLimpo.includes(termoLimpoNumeros) ||
           telefoneLimpo.includes(termoLimpoNumeros)));
 
-
     return bateLoja && bateTipo && bateStatus && bateBusca;
   });
-
 
   const tbody = document.getElementById("corpo-tabela-solicitacoes");
   const barraPaginacao = document.getElementById("barra-paginacao-tabela");
   const infoPaginacao = document.getElementById("info-paginacao-tabela");
   const btnVerMais = document.getElementById("btn-ver-mais-solicitacoes");
-
 
   if (filtradas.length === 0) {
     if (barraPaginacao) barraPaginacao.style.display = "none";
@@ -370,10 +320,8 @@ function renderizarTabela(resetarLimite = true) {
     return;
   }
 
-
   const ordenadas = ordenarSolicitacoesTabela(filtradas);
   const itensVisiveis = ordenadas.slice(0, limiteExibicaoTabela);
-
 
   if (barraPaginacao && infoPaginacao && btnVerMais) {
     barraPaginacao.style.display = "flex";
@@ -382,9 +330,7 @@ function renderizarTabela(resetarLimite = true) {
       itensVisiveis.length < ordenadas.length ? "inline-block" : "none";
   }
 
-
   tbody.innerHTML = "";
-
 
   itensVisiveis.forEach((sol) => {
     const isEstorno = sol.tipo === "EST";
@@ -392,18 +338,14 @@ function renderizarTabela(resetarLimite = true) {
     const isEmAberto =
       sol.status === "Em andamento" || sol.status === "Aguardando Financeiro";
 
-
     const clienteSeg = sol.cliente || { nome: "-", cpf: "", telefone: "" };
-
 
     const estornoVinculado = isDevolucao
       ? obterEstornoVinculado(sol.protocolo)
       : null;
 
-
     // Bloqueio total da DEV enquanto estiver conectada a um EST não cancelado
     const devBloqueadaPorEstorno = Boolean(estornoVinculado);
-
 
     const classeBadgeStatus =
       sol.status === "Concluída"
@@ -414,7 +356,6 @@ function renderizarTabela(resetarLimite = true) {
             ? "badge-aguardando-fin"
             : "badge-andamento";
 
-
     const classeBadgeTipo =
       sol.tipo === "DEV"
         ? "badge-tipo-dev"
@@ -422,14 +363,12 @@ function renderizarTabela(resetarLimite = true) {
           ? "badge-tipo-trc"
           : "badge-tipo-est";
 
-
     const qtdItens = Array.isArray(sol.produtos) ? sol.produtos.length : 0;
     const textoColunaItens = isEstorno
       ? `<strong style="color: #0369a1;">${sol.valorDevolvido || sol.valorEstorno || "-"}</strong>`
       : sol.compraInteira && qtdItens === 0
         ? `<span class="badge-compra-inteira">Compra Inteira</span>`
         : `${qtdItens} ${qtdItens === 1 ? "item" : "itens"}`;
-
 
     const isConcluida = sol.status === "Concluída";
     const textoWppMenu = isConcluida
@@ -443,14 +382,11 @@ function renderizarTabela(resetarLimite = true) {
         ? "item-wpp-enviado"
         : "item-wpp";
 
-
     const mostrarBotaoCanhoto = sol.tipo === "DEV" || sol.tipo === "TRC";
-
 
     const podeEditarDevTrc =
       !isEstorno && sol.status === "Em andamento" && !devBloqueadaPorEstorno;
     const podeEditarEstorno = isEstorno && isEmAberto;
-
 
     tbody.innerHTML += `
       <tr>
@@ -487,7 +423,6 @@ function renderizarTabela(resetarLimite = true) {
                 : ""
             }
 
-
             <div class="menu-tres-pontinhos-wrapper">
               <button
                 type="button"
@@ -518,7 +453,6 @@ function renderizarTabela(resetarLimite = true) {
                 <button type="button" class="dropdown-item ${classeWppMenu}" onclick="fecharTodosMenusDropdown(); enviarWhatsApp('${sol.protocolo}')">
                   ${textoWppMenu}
                 </button>
-
 
                 ${
                   devBloqueadaPorEstorno
@@ -574,16 +508,13 @@ function renderizarTabela(resetarLimite = true) {
   });
 }
 
-
 // =========================================================================
 // E-MAIL FINANCEIRO E STATUS SIMPLES (ESTORNO)
 // =========================================================================
 
-
 function abrirModalEmailEstorno(protocolo) {
   const sol = cacheSolicitacoes.find((s) => s.protocolo === protocolo);
   if (!sol) return;
-
 
   const isNaoPago = Boolean(sol.pedidoNaoPago);
   const valorEstornar = isNaoPago
@@ -593,68 +524,52 @@ function abrirModalEmailEstorno(protocolo) {
     ? "R$ 0,00 (Não pago)"
     : sol.valorPedido || "Não informado";
 
-
   const assunto = isNaoPago
     ? `Cancelamento / Baixa Fiscal (Pedido Não Pago) - Pedido #${sol.numeroPedido}${sol.sequenciaCliente ? ` | SEQ ${sol.sequenciaCliente}` : ""}`
     : `Solicitação de Estorno - Pedido #${sol.numeroPedido}${sol.sequenciaCliente ? ` | SEQ ${sol.sequenciaCliente}` : ""}`;
-
 
   const linhaDev = sol.protocoloDevolucao
     ? `• Protocolo de Devolução: ${sol.protocoloDevolucao} (uso interno do setor)\n`
     : "";
 
-
   const blocoFinanceiro = isNaoPago
     ? `- Situação do Pagamento: PEDIDO NÃO PAGO (Compra cancelada antes do pagamento — sem estorno financeiro)\n- Valor do Pedido: ${valorPedidoExibido}\n- Valor Devolvido (a Estornar): ${valorEstornar}\n- Forma de Pagamento: ${sol.formaPagamento || "Não pago (Compra cancelada)"}`
     : `- Valor do Pedido: ${valorPedidoExibido}\n- Valor Devolvido (a Estornar): ${valorEstornar}\n- Forma de Pagamento: ${sol.formaPagamento || "Não informada"}`;
 
-
   const corpo = `Olá,
 
-
 Segue ${isNaoPago ? "registro de cancelamento de pedido não pago" : "solicitação de estorno"} cliente E-Commerce (Bigmais em Casa):
-
 
 - Data de Solicitação: ${sol.dataSolicitacao}
 - Loja: ${sol.loja || "Não informada"}
 - Solicitante: ${sol.solicitante}
 
-
 CONTROLE INTERNO DO SETOR E-COMMERCE (USO EXCLUSIVO DO SETOR — NÃO É CÓDIGO DO FINANCEIRO):
-
 
 - Protocolo de Estorno: ${sol.protocolo} (uso interno do setor)
 ${linhaDev}
 DADOS DO CLIENTE:
-
 
 - Nome do Cliente: ${sol.cliente.nome}
 - CPF do Cliente: ${sol.cliente.cpf}
 - Sequência Cliente (SEQ): ${sol.sequenciaCliente || "Não informada"}
 - Telefone (WhatsApp): ${sol.cliente.telefone}
 
-
 DADOS FISCAIS E FINANCEIROS:
-
 
 - Número do Pedido: #${sol.numeroPedido}
 - Nota Fiscal do Pedido (Nº): ${sol.nfPedido || "Não informada"}
 - Nota Fiscal da Devolução: ${sol.nfDevolucao || "Não informada"}
 ${blocoFinanceiro}
 
-
 MOTIVO DA SOLICITAÇÃO:
-
 
 - Motivo: ${sol.motivo || "Não especificado"}
 - Detalhes / Observação: ${sol.observacao || "Sem observações adicionais."}
 
-
 Qualquer dúvida estamos à disposição.
 
-
 Atenciosamente, Equipe E-commerce Bigmais em Casa.`;
-
 
   document.getElementById("painel-email-assunto").value = assunto;
   document.getElementById("painel-email-corpo").value = corpo;
@@ -662,7 +577,6 @@ Atenciosamente, Equipe E-commerce Bigmais em Casa.`;
     "Copiar Assunto e E-mail";
   document.getElementById("modal-email-estorno").showModal();
 }
-
 
 async function copiarEmailPainel() {
   const assunto = document.getElementById("painel-email-assunto").value;
@@ -680,7 +594,6 @@ async function copiarEmailPainel() {
   }
 }
 
-
 async function atualizarStatusSimples(protocolo, novoStatus) {
   const sol = cacheSolicitacoes.find((s) => s.protocolo === protocolo);
   if (sol && sol.tipo === "DEV" && obterEstornoVinculado(sol.protocolo)) {
@@ -690,12 +603,10 @@ async function atualizarStatusSimples(protocolo, novoStatus) {
     return;
   }
 
-
   const confirmar = confirm(
     `Alterar o status da solicitação ${protocolo} para "${novoStatus}"?`
   );
   if (!confirmar) return;
-
 
   try {
     const resposta = await fetch(URL_API_PLANILHA, {
@@ -707,7 +618,6 @@ async function atualizarStatusSimples(protocolo, novoStatus) {
         novoStatus: novoStatus,
       }),
     });
-
 
     const resultado = await resposta.json();
     if (resultado.sucesso) {
@@ -726,11 +636,9 @@ async function atualizarStatusSimples(protocolo, novoStatus) {
   }
 }
 
-
 // =========================================================================
 // EDIÇÃO DE ESTORNO (EST NÃO FINALIZADO) — COM TROCA DE DEV VINCULADA
 // =========================================================================
-
 
 function mascaraMoedaPainel(input) {
   let numeros = input.value.replace(/\D/g, "");
@@ -745,7 +653,6 @@ function mascaraMoedaPainel(input) {
   });
 }
 
-
 function converterMoedaPainelParaFloat(textoMoeda) {
   if (!textoMoeda) return 0;
   return (
@@ -753,11 +660,9 @@ function converterMoedaPainelParaFloat(textoMoeda) {
   );
 }
 
-
 function popularSelectDevEdicaoEstorno(protocoloEstornoAtual, protocoloDevAtual) {
   const select = document.getElementById("edit-est-dev-select");
   select.innerHTML = `<option value="">-- Selecione a DEV concluída --</option>`;
-
 
   const devsDisponiveis = cacheSolicitacoes.filter((s) => {
     if (s.tipo !== "DEV") return false;
@@ -766,7 +671,6 @@ function popularSelectDevEdicaoEstorno(protocoloEstornoAtual, protocoloDevAtual)
     const estAtivo = obterEstornoVinculado(s.protocolo, protocoloEstornoAtual);
     return !estAtivo;
   });
-
 
   devsDisponiveis
     .slice()
@@ -778,18 +682,14 @@ function popularSelectDevEdicaoEstorno(protocoloEstornoAtual, protocoloDevAtual)
       select.appendChild(opt);
     });
 
-
   select.value = protocoloDevAtual || "";
 }
-
 
 function aoTrocarDevNaEdicaoEstorno() {
   const select = document.getElementById("edit-est-dev-select");
   const novaDevProto = select.value;
 
-
   if (novaDevProto === devAnteriorEdicaoEstorno) return;
-
 
   document.getElementById("edit-est-loja").value = "Loja 8 - Vila Isa";
   document.getElementById("edit-est-nome").value = "";
@@ -805,16 +705,12 @@ function aoTrocarDevNaEdicaoEstorno() {
   document.getElementById("edit-est-motivo").value = "";
   document.getElementById("edit-est-observacao").value = "";
 
-
   devAnteriorEdicaoEstorno = novaDevProto;
-
 
   if (!novaDevProto) return;
 
-
   const dev = cacheSolicitacoes.find((s) => s.protocolo === novaDevProto);
   if (!dev) return;
-
 
   if (dev.loja) document.getElementById("edit-est-loja").value = dev.loja;
   document.getElementById("edit-est-nome").value = dev.cliente?.nome || "";
@@ -827,7 +723,6 @@ function aoTrocarDevNaEdicaoEstorno() {
       ? "Devolução da compra inteira"
       : dev.motivo || "";
 
-
   const resumoItens =
     dev.compraInteira && (!dev.produtos || dev.produtos.length === 0)
       ? "Devolução da compra inteira."
@@ -835,18 +730,15 @@ function aoTrocarDevNaEdicaoEstorno() {
           .map((p) => `${p.quantidade}${p.unidade} x ${p.descricao}`)
           .join(", ");
 
-
   if (resumoItens) {
     document.getElementById("edit-est-observacao").value =
       `Itens devolvidos: ${resumoItens}`;
   }
 }
 
-
 function abrirModalEdicaoEstorno(protocolo) {
   const sol = cacheSolicitacoes.find((s) => s.protocolo === protocolo);
   if (!sol) return;
-
 
   if (sol.status === "Concluída" || sol.status === "Cancelada") {
     alert(
@@ -855,29 +747,23 @@ function abrirModalEdicaoEstorno(protocolo) {
     return;
   }
 
-
   protocoloEstornoEmEdicao = protocolo;
   devAnteriorEdicaoEstorno = sol.protocoloDevolucao || "";
-
 
   document.getElementById("edit-est-titulo").textContent =
     `Editar Solicitação de Estorno - ${sol.protocolo}`;
 
-
   popularSelectDevEdicaoEstorno(sol.protocolo, sol.protocoloDevolucao || "");
-
 
   document.getElementById("edit-est-loja").value =
     sol.loja || "Loja 8 - Vila Isa";
   document.getElementById("edit-est-solicitante").value = sol.solicitante || "";
-
 
   document.getElementById("edit-est-nome").value = sol.cliente?.nome || "";
   document.getElementById("edit-est-cpf").value = sol.cliente?.cpf || "";
   document.getElementById("edit-est-seq").value = sol.sequenciaCliente || "";
   document.getElementById("edit-est-telefone").value =
     sol.cliente?.telefone || "";
-
 
   document.getElementById("edit-est-pedido").value = sol.numeroPedido || "";
   document.getElementById("edit-est-nf-pedido").value = sol.nfPedido || "";
@@ -887,34 +773,28 @@ function abrirModalEdicaoEstorno(protocolo) {
   document.getElementById("edit-est-valor-devolvido").value =
     sol.valorDevolvido || sol.valorEstorno || "";
 
-
   const selectPag = document.getElementById("edit-est-pagamento");
   const opcoesPag = Array.from(selectPag.options).map((o) => o.value);
   selectPag.value = opcoesPag.includes(sol.formaPagamento)
     ? sol.formaPagamento
     : "Crédito";
 
-
   document.getElementById("edit-est-motivo").value = sol.motivo || "";
   document.getElementById("edit-est-observacao").value = sol.observacao || "";
 
-
   document.getElementById("modal-edicao-estorno").showModal();
 }
-
 
 async function salvarEdicaoEstorno() {
   const protocoloDevolucao = document
     .getElementById("edit-est-dev-select")
     .value.trim();
 
-
   if (!protocoloDevolucao) {
     alert("Selecione obrigatoriamente uma Devolução Concluída (DEV).");
     document.getElementById("edit-est-dev-select").focus();
     return;
   }
-
 
   const conflitoEst = obterEstornoVinculado(
     protocoloDevolucao,
@@ -927,7 +807,6 @@ async function salvarEdicaoEstorno() {
     return;
   }
 
-
   const loja = document.getElementById("edit-est-loja").value;
   const solicitante = document
     .getElementById("edit-est-solicitante")
@@ -938,7 +817,6 @@ async function salvarEdicaoEstorno() {
     .getElementById("edit-est-seq")
     .value.trim();
   const telefone = document.getElementById("edit-est-telefone").value.trim();
-
 
   const numeroPedido = document
     .getElementById("edit-est-pedido")
@@ -957,7 +835,6 @@ async function salvarEdicaoEstorno() {
   const observacao = document
     .getElementById("edit-est-observacao")
     .value.trim();
-
 
   if (
     !solicitante ||
@@ -978,27 +855,22 @@ async function salvarEdicaoEstorno() {
     return;
   }
 
-
   const numPedido = converterMoedaPainelParaFloat(valorPedido);
   const numDevolvido = converterMoedaPainelParaFloat(valorDevolvido);
-
 
   if (numPedido <= 0 || numDevolvido <= 0) {
     alert("Informe valores monetários válidos maiores que R$ 0,00.");
     return;
   }
 
-
   if (numDevolvido > numPedido) {
     alert("O Valor Devolvido não pode ser maior que o Valor do Pedido.");
     return;
   }
 
-
   const botao = document.getElementById("btn-salvar-edicao-estorno");
   botao.disabled = true;
   botao.textContent = "Salvando Alterações...";
-
 
   const dadosEditados = {
     tipo: "EST",
@@ -1027,7 +899,6 @@ async function salvarEdicaoEstorno() {
     },
   };
 
-
   try {
     const resposta = await fetch(URL_API_PLANILHA, {
       method: "POST",
@@ -1039,7 +910,6 @@ async function salvarEdicaoEstorno() {
       }),
     });
 
-
     const resultado = await resposta.json();
     if (resultado.sucesso) {
       const indice = cacheSolicitacoes.findIndex(
@@ -1048,7 +918,6 @@ async function salvarEdicaoEstorno() {
       if (indice !== -1) {
         cacheSolicitacoes[indice] = resultado.dadosAtualizados;
       }
-
 
       document.getElementById("modal-edicao-estorno").close();
       renderizarTabela(false);
@@ -1066,20 +935,16 @@ async function salvarEdicaoEstorno() {
   }
 }
 
-
 // =========================================================================
 // IMPRESSÃO DO CANHOTO / COMPROVANTE EM 2 VIAS (A4 RETRATO)
 // =========================================================================
-
 
 function montarHTMLViaCanhoto(sol, rotuloVia, tituloDocumento, termoRodape, classeExtra) {
   const temItensIndividuais = sol.produtos && sol.produtos.length > 0;
   const isCompraInteira = Boolean(sol.compraInteira) && !temItensIndividuais;
   const isTroca = sol.tipo === "TRC";
 
-
   let conteudoProdutosHTML = "";
-
 
   if (isCompraInteira) {
     const tipoOperacaoTexto = isTroca ? "TROCA TOTAL" : "DEVOLUÇÃO TOTAL";
@@ -1110,7 +975,6 @@ function montarHTMLViaCanhoto(sol, rotuloVia, tituloDocumento, termoRodape, clas
       })
       .join("");
 
-
     conteudoProdutosHTML = `
       <table class="canhoto-tabela">
         <thead>
@@ -1130,18 +994,15 @@ function montarHTMLViaCanhoto(sol, rotuloVia, tituloDocumento, termoRodape, clas
     `;
   }
 
-
   const enderecoCompleto = sol.entregueEmLoja
     ? "ENTREGUE EM LOJA (Cliente trouxe o produto presencialmente)"
     : `${sol.endereco.rua}, nº ${sol.endereco.numero}${
         sol.endereco.complemento ? ` (${sol.endereco.complemento})` : ""
       } — Bairro: ${sol.endereco.bairro} — ${sol.endereco.cidade}/${sol.endereco.estado} — CEP: ${sol.endereco.cep}`;
 
-
   const tituloBlocoLogistica = sol.entregueEmLoja
     ? "Modalidade de Entrega & Motivo"
     : "Endereço de Coleta & Motivo";
-
 
   const labelEndereco = sol.entregueEmLoja ? "Local:" : "Endereço:";
   const labelDataOperacao = sol.entregueEmLoja
@@ -1149,7 +1010,6 @@ function montarHTMLViaCanhoto(sol, rotuloVia, tituloDocumento, termoRodape, clas
       ? "Data/Hora da Troca:"
       : "Data/Hora da Entrega:"
     : "Data/Hora da Coleta:";
-
 
   return `
     <div class="canhoto-via ${classeExtra}">
@@ -1170,7 +1030,6 @@ function montarHTMLViaCanhoto(sol, rotuloVia, tituloDocumento, termoRodape, clas
           </div>
         </div>
 
-
         <div class="canhoto-grid-info">
           <div class="canhoto-bloco">
             <div class="canhoto-bloco-titulo">Dados do Cliente</div>
@@ -1181,7 +1040,6 @@ function montarHTMLViaCanhoto(sol, rotuloVia, tituloDocumento, termoRodape, clas
             </div>
           </div>
 
-
           <div class="canhoto-bloco">
             <div class="canhoto-bloco-titulo">${tituloBlocoLogistica}</div>
             <div><strong>${labelEndereco}</strong> ${enderecoCompleto}</div>
@@ -1191,10 +1049,8 @@ function montarHTMLViaCanhoto(sol, rotuloVia, tituloDocumento, termoRodape, clas
           </div>
         </div>
 
-
         ${conteudoProdutosHTML}
       </div>
-
 
       <div class="canhoto-rodape">
         <div class="canhoto-termo">
@@ -1211,15 +1067,12 @@ function montarHTMLViaCanhoto(sol, rotuloVia, tituloDocumento, termoRodape, clas
   `;
 }
 
-
 function imprimirCanhotoColeta(protocolo) {
   const sol = cacheSolicitacoes.find((s) => s.protocolo === protocolo);
   if (!sol) return;
 
-
   const isTroca = sol.tipo === "TRC";
   const naLoja = Boolean(sol.entregueEmLoja);
-
 
   const via1HTML = isTroca
     ? montarHTMLViaCanhoto(
@@ -1243,7 +1096,6 @@ function imprimirCanhotoColeta(protocolo) {
         "canhoto-via-superior"
       );
 
-
   const via2HTML = isTroca
     ? montarHTMLViaCanhoto(
         sol,
@@ -1264,19 +1116,15 @@ function imprimirCanhotoColeta(protocolo) {
         ""
       );
 
-
   const areaImpressao = document.getElementById("area-impressao-canhoto");
   areaImpressao.innerHTML = via1HTML + via2HTML;
-
 
   window.print();
 }
 
-
 // =========================================================================
 // EDIÇÃO DE SOLICITAÇÃO EM ANDAMENTO (DEV / TRC)
 // =========================================================================
-
 
 function mascaraCPFPainel(input) {
   let value = input.value.replace(/\D/g, "").slice(0, 11);
@@ -1285,7 +1133,6 @@ function mascaraCPFPainel(input) {
   value = value.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
   input.value = value;
 }
-
 
 function mascaraTelefonePainel(input) {
   let value = input.value.replace(/\D/g, "").slice(0, 11);
@@ -1299,19 +1146,16 @@ function mascaraTelefonePainel(input) {
   input.value = value;
 }
 
-
 function mascaraCEPPainel(input) {
   let value = input.value.replace(/\D/g, "").slice(0, 8);
   value = value.replace(/(\d{5})(\d)/, "$1-$2");
   input.value = value;
 }
 
-
 async function buscarCEPEdicao(input) {
   if (document.getElementById("edit-entregue-loja").checked) return;
   const numeros = input.value.replace(/\D/g, "");
   if (numeros.length !== 8 || /^(\d)\1{7}$/.test(numeros)) return;
-
 
   try {
     const resposta = await fetch(`https://viacep.com.br/ws/${numeros}/json/`);
@@ -1329,7 +1173,6 @@ async function buscarCEPEdicao(input) {
   } catch (erro) {}
 }
 
-
 function alternarEntregueEmLojaEdicao() {
   const marcado = document.getElementById("edit-entregue-loja").checked;
   const idsEndereco = [
@@ -1342,7 +1185,6 @@ function alternarEntregueEmLojaEdicao() {
     "edit-complemento",
   ];
 
-
   idsEndereco.forEach((id) => {
     const campo = document.getElementById(id);
     campo.disabled = marcado;
@@ -1350,7 +1192,6 @@ function alternarEntregueEmLojaEdicao() {
       campo.value = "";
     }
   });
-
 
   if (!marcado) {
     if (!document.getElementById("edit-cidade").value) {
@@ -1362,12 +1203,10 @@ function alternarEntregueEmLojaEdicao() {
   }
 }
 
-
 function alternarCompraInteiraEdicao() {
   const compraInteira = document.getElementById("edit-compra-inteira").checked;
   const aviso = document.getElementById("edit-aviso-compra-inteira");
   const blocoProdutos = document.getElementById("edit-bloco-produtos");
-
 
   if (compraInteira) {
     aviso.style.display = "block";
@@ -1378,11 +1217,9 @@ function alternarCompraInteiraEdicao() {
   }
 }
 
-
 function abrirModalEdicao(protocolo) {
   const sol = cacheSolicitacoes.find((s) => s.protocolo === protocolo);
   if (!sol) return;
-
 
   if (sol.tipo === "DEV" && obterEstornoVinculado(sol.protocolo)) {
     alert(
@@ -1391,15 +1228,12 @@ function abrirModalEdicao(protocolo) {
     return;
   }
 
-
   protocoloEmEdicao = protocolo;
   itensEmEdicao = JSON.parse(JSON.stringify(sol.produtos || []));
   ultimoCodigoEdicao = "";
 
-
   document.getElementById("edicao-titulo").textContent =
     `Editar Solicitação - ${sol.protocolo}`;
-
 
   document.getElementById("edit-tipo").value =
     sol.tipo === "TRC" ? "TRC" : "DEV";
@@ -1407,15 +1241,12 @@ function abrirModalEdicao(protocolo) {
   document.getElementById("edit-solicitante").value = sol.solicitante || "";
   document.getElementById("edit-pedido").value = sol.numeroPedido || "";
 
-
   document.getElementById("edit-nome").value = sol.cliente.nome || "";
   document.getElementById("edit-cpf").value = sol.cliente.cpf || "";
   document.getElementById("edit-telefone").value = sol.cliente.telefone || "";
 
-
   const entregueEmLoja = Boolean(sol.entregueEmLoja);
   document.getElementById("edit-entregue-loja").checked = entregueEmLoja;
-
 
   document.getElementById("edit-cep").value = sol.endereco?.cep || "";
   document.getElementById("edit-rua").value = sol.endereco?.rua || "";
@@ -1427,18 +1258,14 @@ function abrirModalEdicao(protocolo) {
   document.getElementById("edit-complemento").value =
     sol.endereco?.complemento || "";
 
-
   alternarEntregueEmLojaEdicao();
-
 
   document.getElementById("edit-motivo").value = sol.motivo || "";
   document.getElementById("edit-observacao").value = sol.observacao || "";
 
-
   const compraInteira = Boolean(sol.compraInteira);
   document.getElementById("edit-compra-inteira").checked = compraInteira;
   alternarCompraInteiraEdicao();
-
 
   document.getElementById("edit-prod-sku").value = "";
   document.getElementById("edit-prod-ean").value = "";
@@ -1446,22 +1273,18 @@ function abrirModalEdicao(protocolo) {
   document.getElementById("edit-prod-unidade").value = "Un";
   document.getElementById("edit-prod-quantidade").value = "";
 
-
   renderizarItensEdicao();
   document.getElementById("modal-edicao").showModal();
 }
 
-
 function renderizarItensEdicao() {
   const container = document.getElementById("lista-itens-edicao");
-
 
   if (itensEmEdicao.length === 0) {
     container.innerHTML =
       "<p style='color: #d32f2f; font-size: 13px; font-weight: 600;'>Nenhum item na solicitação. Adicione ao menos 1 produto abaixo ou marque 'Compra Inteira'.</p>";
     return;
   }
-
 
   container.innerHTML = "";
   itensEmEdicao.forEach((item, index) => {
@@ -1486,18 +1309,15 @@ function renderizarItensEdicao() {
   });
 }
 
-
 function editarQuantidadeItemEdicao(index, input) {
   const unidade = itensEmEdicao[index].unidade;
   let apenasNumeros = input.value.replace(/\D/g, "");
-
 
   if (apenasNumeros === "") {
     input.value = "";
     itensEmEdicao[index].quantidade = "";
     return;
   }
-
 
   if (unidade === "Kg") {
     const formatado = (parseInt(apenasNumeros, 10) / 1000)
@@ -1512,12 +1332,10 @@ function editarQuantidadeItemEdicao(index, input) {
   }
 }
 
-
 function removerItemEdicao(index) {
   itensEmEdicao.splice(index, 1);
   renderizarItensEdicao();
 }
-
 
 function mudarUnidadeEdicao() {
   const unidade = document.getElementById("edit-prod-unidade").value;
@@ -1526,18 +1344,15 @@ function mudarUnidadeEdicao() {
   campoQtd.placeholder = unidade === "Kg" ? "0,000" : "0";
 }
 
-
 function formatarQuantidadeEdicao() {
   const unidade = document.getElementById("edit-prod-unidade").value;
   const campoQtd = document.getElementById("edit-prod-quantidade");
   let apenasNumeros = campoQtd.value.replace(/\D/g, "");
 
-
   if (apenasNumeros === "") {
     campoQtd.value = "";
     return;
   }
-
 
   if (unidade === "Kg") {
     campoQtd.value = (parseInt(apenasNumeros, 10) / 1000)
@@ -1548,7 +1363,6 @@ function formatarQuantidadeEdicao() {
   }
 }
 
-
 function aoDigitarCodigoEdicao(tipo, input) {
   if (tipo === "EAN") {
     input.value = input.value.replace(/\D/g, "").slice(0, 13);
@@ -1556,9 +1370,7 @@ function aoDigitarCodigoEdicao(tipo, input) {
     input.value = input.value.replace(/\D/g, "");
   }
 
-
   const codigoAtual = input.value.trim();
-
 
   if (
     ultimoCodigoEdicao !== "" &&
@@ -1578,7 +1390,6 @@ function aoDigitarCodigoEdicao(tipo, input) {
   }
 }
 
-
 async function buscarProdutoEdicao(tipo) {
   const campoSku = document.getElementById("edit-prod-sku");
   const campoEan = document.getElementById("edit-prod-ean");
@@ -1586,41 +1397,33 @@ async function buscarProdutoEdicao(tipo) {
   const campoUnidade = document.getElementById("edit-prod-unidade");
   const campoQtd = document.getElementById("edit-prod-quantidade");
 
-
   const codigo =
     tipo === "SKU" ? campoSku.value.trim() : campoEan.value.trim();
-
 
   if (!codigo || `${tipo}:${codigo}` === ultimoCodigoEdicao) return;
   ultimoCodigoEdicao = `${tipo}:${codigo}`;
 
-
   campoDesc.value = "";
   campoDesc.placeholder = "Buscando produto...";
-
 
   try {
     const urlConsulta = `${URL_API_PLANILHA}?acao=buscarProduto&tipo=${tipo}&codigo=${encodeURIComponent(codigo)}`;
     const resposta = await fetch(urlConsulta);
     const dados = await resposta.json();
 
-
     const codigoAtualNoCampo =
       tipo === "SKU" ? campoSku.value.trim() : campoEan.value.trim();
     if (codigoAtualNoCampo !== codigo) return;
-
 
     if (dados.sucesso && dados.encontrado && dados.produto) {
       if (dados.produto.sku) campoSku.value = dados.produto.sku;
       if (dados.produto.ean) campoEan.value = dados.produto.ean;
       if (dados.produto.descricao) campoDesc.value = dados.produto.descricao;
 
-
       if (dados.produto.unidade) {
         campoUnidade.value = dados.produto.unidade;
         mudarUnidadeEdicao();
       }
-
 
       ultimoCodigoEdicao = `SKU:${campoSku.value.trim()}`;
       campoQtd.focus();
@@ -1632,14 +1435,12 @@ async function buscarProdutoEdicao(tipo) {
   }
 }
 
-
 function adicionarItemEdicao() {
   const sku = document.getElementById("edit-prod-sku").value.trim();
   const ean = document.getElementById("edit-prod-ean").value.trim();
   const descricao = document.getElementById("edit-prod-descricao").value.trim();
   const unidade = document.getElementById("edit-prod-unidade").value;
   const quantidade = document.getElementById("edit-prod-quantidade").value.trim();
-
 
   if (
     !sku ||
@@ -1654,11 +1455,9 @@ function adicionarItemEdicao() {
     return;
   }
 
-
   const jaExiste = itensEmEdicao.some(
     (item) => item.sku === sku || (ean !== "" && item.ean === ean)
   );
-
 
   if (jaExiste) {
     alert(
@@ -1667,9 +1466,7 @@ function adicionarItemEdicao() {
     return;
   }
 
-
   itensEmEdicao.push({ ean, sku, descricao, unidade, quantidade });
-
 
   document.getElementById("edit-prod-sku").value = "";
   document.getElementById("edit-prod-ean").value = "";
@@ -1679,10 +1476,8 @@ function adicionarItemEdicao() {
   ultimoCodigoEdicao = "";
   document.getElementById("edit-prod-sku").focus();
 
-
   renderizarItensEdicao();
 }
-
 
 async function salvarEdicaoSolicitacao() {
   const tipo = document.getElementById("edit-tipo").value;
@@ -1693,11 +1488,9 @@ async function salvarEdicaoSolicitacao() {
     .value.trim()
     .replace(/^#+/, "");
 
-
   const nome = document.getElementById("edit-nome").value.trim();
   const cpf = document.getElementById("edit-cpf").value.trim();
   const telefone = document.getElementById("edit-telefone").value.trim();
-
 
   const entregueEmLoja = document.getElementById("edit-entregue-loja").checked;
   const compraInteira = document.getElementById("edit-compra-inteira").checked;
@@ -1709,16 +1502,13 @@ async function salvarEdicaoSolicitacao() {
   const estado = document.getElementById("edit-estado").value.trim();
   const complemento = document.getElementById("edit-complemento").value.trim();
 
-
   const motivo = document.getElementById("edit-motivo").value.trim();
   const observacao = document.getElementById("edit-observacao").value.trim();
-
 
   if (!solicitante || !numeroPedido || !nome || !cpf || !telefone || !motivo) {
     alert("Preencha todos os campos obrigatórios antes de salvar.");
     return;
   }
-
 
   if (
     !entregueEmLoja &&
@@ -1730,12 +1520,10 @@ async function salvarEdicaoSolicitacao() {
     return;
   }
 
-
   if (!compraInteira) {
     const temItemInvalido = itensEmEdicao.some(
       (i) => !i.quantidade || i.quantidade === "0" || i.quantidade === "0,000"
     );
-
 
     if (itensEmEdicao.length === 0 || temItemInvalido) {
       alert(
@@ -1745,11 +1533,9 @@ async function salvarEdicaoSolicitacao() {
     }
   }
 
-
   const botao = document.getElementById("btn-salvar-edicao");
   botao.disabled = true;
   botao.textContent = "Salvando Alterações...";
-
 
   const dadosEditados = {
     tipo,
@@ -1775,7 +1561,6 @@ async function salvarEdicaoSolicitacao() {
     produtos: compraInteira ? [] : [...itensEmEdicao],
   };
 
-
   try {
     const resposta = await fetch(URL_API_PLANILHA, {
       method: "POST",
@@ -1787,7 +1572,6 @@ async function salvarEdicaoSolicitacao() {
       }),
     });
 
-
     const resultado = await resposta.json();
     if (resultado.sucesso) {
       const indice = cacheSolicitacoes.findIndex(
@@ -1796,7 +1580,6 @@ async function salvarEdicaoSolicitacao() {
       if (indice !== -1) {
         cacheSolicitacoes[indice] = resultado.dadosAtualizados;
       }
-
 
       document.getElementById("modal-edicao").close();
       renderizarTabela(false);
@@ -1814,16 +1597,13 @@ async function salvarEdicaoSolicitacao() {
   }
 }
 
-
 // =========================================================================
 // MODAL DE CONFERÊNCIA DE ITENS RECEBIDOS
 // =========================================================================
 
-
 function abrirModalConferencia(protocolo) {
   const sol = cacheSolicitacoes.find((s) => s.protocolo === protocolo);
   if (!sol) return;
-
 
   if (sol.tipo === "DEV" && obterEstornoVinculado(sol.protocolo)) {
     alert(
@@ -1832,22 +1612,18 @@ function abrirModalConferencia(protocolo) {
     return;
   }
 
-
   protocoloEmConferencia = protocolo;
   itensEmConferencia = JSON.parse(JSON.stringify(sol.produtos || []));
   compraInteiraEmConferencia = Boolean(sol.compraInteira);
   ultimoCodigoConferencia = "";
 
-
   document.getElementById("conferencia-titulo").textContent =
     `Conferência de Itens Recolhidos - ${protocolo}`;
-
 
   document.getElementById("conferencia-subtitulo").textContent =
     compraInteiraEmConferencia
       ? "Esta solicitação está marcada como COMPRA INTEIRA. Você pode confirmar a conclusão diretamente ou incluir itens conferidos abaixo, se desejar."
       : "Confirme as quantidades efetivamente recebidas, remova itens não recolhidos ou inclua novos itens antes de concluir.";
-
 
   document.getElementById("conf-sku").value = "";
   document.getElementById("conf-ean").value = "";
@@ -1856,7 +1632,6 @@ function abrirModalConferencia(protocolo) {
   document.getElementById("conf-unidade").value = "Un";
   document.getElementById("conf-quantidade").value = "";
 
-
   renderizarItensConferencia();
   document.getElementById("modal-conferencia").showModal();
   if (!compraInteiraEmConferencia) {
@@ -1864,10 +1639,8 @@ function abrirModalConferencia(protocolo) {
   }
 }
 
-
 function renderizarItensConferencia() {
   const container = document.getElementById("lista-itens-conferencia");
-
 
   if (itensEmConferencia.length === 0) {
     if (compraInteiraEmConferencia) {
@@ -1880,9 +1653,7 @@ function renderizarItensConferencia() {
     return;
   }
 
-
   container.innerHTML = "";
-
 
   itensEmConferencia.forEach((item, index) => {
     container.innerHTML += `
@@ -1906,18 +1677,15 @@ function renderizarItensConferencia() {
   });
 }
 
-
 function editarQuantidadeItemConferencia(index, input) {
   const unidade = itensEmConferencia[index].unidade;
   let apenasNumeros = input.value.replace(/\D/g, "");
-
 
   if (apenasNumeros === "") {
     input.value = "";
     itensEmConferencia[index].quantidade = "";
     return;
   }
-
 
   if (unidade === "Kg") {
     const formatado = (parseInt(apenasNumeros, 10) / 1000)
@@ -1932,12 +1700,10 @@ function editarQuantidadeItemConferencia(index, input) {
   }
 }
 
-
 function removerItemConferencia(index) {
   itensEmConferencia.splice(index, 1);
   renderizarItensConferencia();
 }
-
 
 function mudarUnidadeConferencia() {
   const unidade = document.getElementById("conf-unidade").value;
@@ -1946,18 +1712,15 @@ function mudarUnidadeConferencia() {
   campoQtd.placeholder = unidade === "Kg" ? "0,000" : "0";
 }
 
-
 function formatarQuantidadeConferencia() {
   const unidade = document.getElementById("conf-unidade").value;
   const campoQtd = document.getElementById("conf-quantidade");
   let apenasNumeros = campoQtd.value.replace(/\D/g, "");
 
-
   if (apenasNumeros === "") {
     campoQtd.value = "";
     return;
   }
-
 
   if (unidade === "Kg") {
     campoQtd.value = (parseInt(apenasNumeros, 10) / 1000)
@@ -1968,7 +1731,6 @@ function formatarQuantidadeConferencia() {
   }
 }
 
-
 function aoDigitarCodigoConferencia(tipo, input) {
   if (tipo === "EAN") {
     input.value = input.value.replace(/\D/g, "").slice(0, 13);
@@ -1976,9 +1738,7 @@ function aoDigitarCodigoConferencia(tipo, input) {
     input.value = input.value.replace(/\D/g, "");
   }
 
-
   const codigoAtual = input.value.trim();
-
 
   if (
     ultimoCodigoConferencia !== "" &&
@@ -1998,7 +1758,6 @@ function aoDigitarCodigoConferencia(tipo, input) {
   }
 }
 
-
 async function buscarProdutoConferencia(tipo) {
   const campoSku = document.getElementById("conf-sku");
   const campoEan = document.getElementById("conf-ean");
@@ -2006,41 +1765,33 @@ async function buscarProdutoConferencia(tipo) {
   const campoUnidade = document.getElementById("conf-unidade");
   const campoQtd = document.getElementById("conf-quantidade");
 
-
   const codigo =
     tipo === "SKU" ? campoSku.value.trim() : campoEan.value.trim();
-
 
   if (!codigo || `${tipo}:${codigo}` === ultimoCodigoConferencia) return;
   ultimoCodigoConferencia = `${tipo}:${codigo}`;
 
-
   campoDesc.value = "";
   campoDesc.placeholder = "Buscando produto...";
-
 
   try {
     const urlConsulta = `${URL_API_PLANILHA}?acao=buscarProduto&tipo=${tipo}&codigo=${encodeURIComponent(codigo)}`;
     const resposta = await fetch(urlConsulta);
     const dados = await resposta.json();
 
-
     const codigoAtualNoCampo =
       tipo === "SKU" ? campoSku.value.trim() : campoEan.value.trim();
     if (codigoAtualNoCampo !== codigo) return;
-
 
     if (dados.sucesso && dados.encontrado && dados.produto) {
       if (dados.produto.sku) campoSku.value = dados.produto.sku;
       if (dados.produto.ean) campoEan.value = dados.produto.ean;
       if (dados.produto.descricao) campoDesc.value = dados.produto.descricao;
 
-
       if (dados.produto.unidade) {
         campoUnidade.value = dados.produto.unidade;
         mudarUnidadeConferencia();
       }
-
 
       ultimoCodigoConferencia = `SKU:${campoSku.value.trim()}`;
       campoQtd.focus();
@@ -2052,14 +1803,12 @@ async function buscarProdutoConferencia(tipo) {
   }
 }
 
-
 function adicionarItemConferencia() {
   const sku = document.getElementById("conf-sku").value.trim();
   const ean = document.getElementById("conf-ean").value.trim();
   const descricao = document.getElementById("conf-descricao").value.trim();
   const unidade = document.getElementById("conf-unidade").value;
   const quantidade = document.getElementById("conf-quantidade").value.trim();
-
 
   if (
     !sku ||
@@ -2074,11 +1823,9 @@ function adicionarItemConferencia() {
     return;
   }
 
-
   const jaExiste = itensEmConferencia.some(
     (item) => item.sku === sku || (ean !== "" && item.ean === ean)
   );
-
 
   if (jaExiste) {
     alert(
@@ -2087,9 +1834,7 @@ function adicionarItemConferencia() {
     return;
   }
 
-
   itensEmConferencia.push({ ean, sku, descricao, unidade, quantidade });
-
 
   document.getElementById("conf-sku").value = "";
   document.getElementById("conf-ean").value = "";
@@ -2101,16 +1846,13 @@ function adicionarItemConferencia() {
   ultimoCodigoConferencia = "";
   document.getElementById("conf-sku").focus();
 
-
   renderizarItensConferencia();
 }
-
 
 async function confirmarConclusaoConferencia() {
   const temItemInvalido = itensEmConferencia.some(
     (i) => !i.quantidade || i.quantidade === "0" || i.quantidade === "0,000"
   );
-
 
   if (
     (!compraInteiraEmConferencia && itensEmConferencia.length === 0) ||
@@ -2122,11 +1864,9 @@ async function confirmarConclusaoConferencia() {
     return;
   }
 
-
   const botao = document.getElementById("btn-confirmar-conclusao");
   botao.disabled = true;
   botao.textContent = "Concluindo na Planilha...";
-
 
   try {
     const resposta = await fetch(URL_API_PLANILHA, {
@@ -2140,7 +1880,6 @@ async function confirmarConclusaoConferencia() {
       }),
     });
 
-
     const resultado = await resposta.json();
     if (resultado.sucesso) {
       const indice = cacheSolicitacoes.findIndex(
@@ -2152,10 +1891,8 @@ async function confirmarConclusaoConferencia() {
         solConcluida.produtos = [...itensEmConferencia];
       }
 
-
       document.getElementById("modal-conferencia").close();
       renderizarTabela(false);
-
 
       if (solConcluida && solConcluida.tipo === "DEV") {
         const abrirEstorno = confirm(
@@ -2180,11 +1917,9 @@ async function confirmarConclusaoConferencia() {
   }
 }
 
-
 // =========================================================================
 // MODAL DE CANCELAMENTO E REABERTURA
 // =========================================================================
-
 
 function abrirModalCancelamento(protocolo) {
   const sol = cacheSolicitacoes.find((s) => s.protocolo === protocolo);
@@ -2195,9 +1930,7 @@ function abrirModalCancelamento(protocolo) {
     return;
   }
 
-
   protocoloEmCancelamento = protocolo;
-
 
   document.getElementById("cancelamento-titulo").textContent =
     `Cancelar Solicitação - ${protocolo}`;
@@ -2206,16 +1939,13 @@ function abrirModalCancelamento(protocolo) {
   document.getElementById("canc-motivo-outro").value = "";
   document.getElementById("grupo-canc-outro").style.display = "none";
 
-
   document.getElementById("modal-cancelamento").showModal();
   document.getElementById("canc-responsavel").focus();
 }
 
-
 function verificarOutroMotivoCancelamento() {
   const select = document.getElementById("canc-motivo-select").value;
   const grupoOutro = document.getElementById("grupo-canc-outro");
-
 
   if (select === "OUTRO") {
     grupoOutro.style.display = "flex";
@@ -2226,12 +1956,10 @@ function verificarOutroMotivoCancelamento() {
   }
 }
 
-
 async function confirmarCancelamentoModal() {
   const responsavel = document.getElementById("canc-responsavel").value.trim();
   const motivoSelect = document.getElementById("canc-motivo-select").value;
   const motivoOutro = document.getElementById("canc-motivo-outro").value.trim();
-
 
   if (!responsavel) {
     alert("Informe o nome de quem está cancelando a solicitação.");
@@ -2239,13 +1967,11 @@ async function confirmarCancelamentoModal() {
     return;
   }
 
-
   if (!motivoSelect) {
     alert("Selecione o motivo do cancelamento.");
     document.getElementById("canc-motivo-select").focus();
     return;
   }
-
 
   if (motivoSelect === "OUTRO" && !motivoOutro) {
     alert("Descreva o motivo do cancelamento no campo de texto.");
@@ -2253,15 +1979,12 @@ async function confirmarCancelamentoModal() {
     return;
   }
 
-
   const motivoFinal =
     motivoSelect === "OUTRO" ? `Outro: ${motivoOutro}` : motivoSelect;
-
 
   const botao = document.getElementById("btn-confirmar-cancelamento");
   botao.disabled = true;
   botao.textContent = "Cancelando...";
-
 
   try {
     const resposta = await fetch(URL_API_PLANILHA, {
@@ -2276,7 +1999,6 @@ async function confirmarCancelamentoModal() {
       }),
     });
 
-
     const resultado = await resposta.json();
     if (resultado.sucesso) {
       const indice = cacheSolicitacoes.findIndex(
@@ -2287,7 +2009,6 @@ async function confirmarCancelamentoModal() {
         cacheSolicitacoes[indice].motivoCancelamento = motivoFinal;
         cacheSolicitacoes[indice].responsavelCancelamento = responsavel;
       }
-
 
       document.getElementById("modal-cancelamento").close();
       renderizarTabela(false);
@@ -2303,11 +2024,9 @@ async function confirmarCancelamentoModal() {
   }
 }
 
-
 async function reabrirSolicitacao(protocolo) {
   const sol = cacheSolicitacoes.find((s) => s.protocolo === protocolo);
   if (!sol) return;
-
 
   if (sol.tipo === "DEV" && obterEstornoVinculado(sol.protocolo)) {
     alert(
@@ -2315,7 +2034,6 @@ async function reabrirSolicitacao(protocolo) {
     );
     return;
   }
-
 
   if (
     sol.tipo === "EST" &&
@@ -2334,14 +2052,11 @@ async function reabrirSolicitacao(protocolo) {
     }
   }
 
-
   const confirmar = confirm(
     `Deseja reabrir a solicitação ${protocolo} (atualmente "${sol.status}") e voltar o status para "Em andamento"?`
   );
 
-
   if (!confirmar) return;
-
 
   try {
     const resposta = await fetch(URL_API_PLANILHA, {
@@ -2353,7 +2068,6 @@ async function reabrirSolicitacao(protocolo) {
         novoStatus: "Em andamento",
       }),
     });
-
 
     const resultado = await resposta.json();
     if (resultado.sucesso) {
@@ -2377,23 +2091,19 @@ async function reabrirSolicitacao(protocolo) {
   }
 }
 
-
 // =========================================================================
 // DETALHES E WHATSAPP (DEV, TRC e EST)
 // =========================================================================
 
-
 function verDetalhes(protocolo) {
   const sol = cacheSolicitacoes.find((s) => s.protocolo === protocolo);
   if (!sol) return;
-
 
   const isEstorno = sol.tipo === "EST";
   const tituloTipo =
     sol.tipo === "TRC" ? "Troca" : isEstorno ? "Estorno" : "Devolução";
   document.getElementById("detalhe-titulo").textContent =
     `${sol.protocolo} — ${tituloTipo} (${sol.status})`;
-
 
   const blocoCancelamentoHTML =
     sol.status === "Cancelada" && sol.motivoCancelamento
@@ -2403,9 +2113,7 @@ function verDetalhes(protocolo) {
          </div>`
       : "";
 
-
   const botoesModal = document.getElementById("detalhe-botoes");
-
 
   if (isEstorno) {
     document.getElementById("detalhe-corpo").innerHTML = `
@@ -2424,7 +2132,6 @@ function verDetalhes(protocolo) {
       <p><strong>Forma de Pagamento:</strong> ${sol.formaPagamento || "-"}</p>
     `;
 
-
     botoesModal.innerHTML = `
       <button type="button" class="btn-azul" onclick="document.getElementById('modal-detalhes').close(); abrirModalEmailEstorno('${sol.protocolo}')">
         Copiar E-mail Financeiro
@@ -2439,7 +2146,6 @@ function verDetalhes(protocolo) {
     const estornoVinc =
       sol.tipo === "DEV" ? obterEstornoVinculado(sol.protocolo) : null;
 
-
     const listaProdutosHTML = isCompraInteira
       ? `<div class="aviso-compra-inteira" style="margin-top: 6px;">
            <strong>Compra Inteira:</strong> Devolução/troca integral de todos os itens do pedido <strong>#${sol.numeroPedido}</strong>.
@@ -2451,20 +2157,16 @@ function verDetalhes(protocolo) {
           )
           .join("")}</ul>`;
 
-
     const tituloLista =
       sol.status === "Concluída"
         ? "Itens conferidos / recebidos:"
         : "Itens da solicitação:";
 
-
     const enderecoDetalhesHTML = sol.entregueEmLoja
       ? `<span class="badge-loja-entrega" style="font-size: 12px;">ENTREGUE EM LOJA (Cliente trouxe o produto até a loja)</span>`
       : `${sol.endereco.rua}, ${sol.endereco.numero} - ${sol.endereco.bairro}, ${sol.endereco.cidade}/${sol.endereco.estado} - CEP: ${sol.endereco.cep} ${sol.endereco.complemento ? `(${sol.endereco.complemento})` : ""}`;
 
-
     const mostrarCanhoto = sol.tipo === "DEV" || sol.tipo === "TRC";
-
 
     document.getElementById("detalhe-corpo").innerHTML = `
       <p><strong>Loja:</strong> ${sol.loja || "Não informada"} | <strong>Data:</strong> ${sol.dataSolicitacao}</p>
@@ -2482,7 +2184,6 @@ function verDetalhes(protocolo) {
       ${listaProdutosHTML}
     `;
 
-
     botoesModal.innerHTML = `
       ${
         mostrarCanhoto
@@ -2497,24 +2198,19 @@ function verDetalhes(protocolo) {
     `;
   }
 
-
   document.getElementById("modal-detalhes").showModal();
 }
-
 
 function enviarWhatsApp(protocolo) {
   const indice = cacheSolicitacoes.findIndex((s) => s.protocolo === protocolo);
   if (indice === -1) return;
 
-
   const sol = cacheSolicitacoes[indice];
-
 
   let telefoneLimpo = sol.cliente.telefone.replace(/\D/g, "");
   if (!telefoneLimpo.startsWith("55")) {
     telefoneLimpo = "55" + telefoneLimpo;
   }
-
 
   if (sol.tipo === "EST") {
     const valorEstornar = sol.valorDevolvido || sol.valorEstorno || "R$ 0,00";
@@ -2522,40 +2218,30 @@ function enviarWhatsApp(protocolo) {
       sol.status === "Concluída"
         ? `Olá, ${sol.cliente.nome}! Aqui é do Bigmais em Casa!
 
-
 O estorno referente ao pedido #${sol.numeroPedido} (Protocolo: ${sol.protocolo}) no valor de ${valorEstornar} foi concluído pelo nosso setor financeiro.
 
-
 Qualquer dúvida, estamos à disposição para te ajudar!
-
 
 Bigmais em Casa, é diferente!`
         : `Olá, ${sol.cliente.nome}! Aqui é do Bigmais em Casa!
 
-
 Sua solicitação de estorno referente ao pedido #${sol.numeroPedido} foi registrada com sucesso.
-
 
 Protocolo: ${sol.protocolo}
 Valor: ${valorEstornar}
 
-
 Nossa equipe já encaminhou os dados para o setor financeiro. Qualquer dúvida, estamos à disposição para te ajudar!
 
-
 Bigmais em Casa, é diferente!`;
-
 
     window.open(
       `https://wa.me/${telefoneLimpo}?text=${encodeURIComponent(msgEstorno)}`,
       "_blank"
     );
 
-
     if (!sol.whatsappEnviado) {
       cacheSolicitacoes[indice].whatsappEnviado = true;
       renderizarTabela(false);
-
 
       fetch(URL_API_PLANILHA, {
         method: "POST",
@@ -2571,12 +2257,10 @@ Bigmais em Casa, é diferente!`;
     return;
   }
 
-
   const isTroca = sol.tipo === "TRC";
   const temItensIndividuais = sol.produtos && sol.produtos.length > 0;
   const isCompraInteira = Boolean(sol.compraInteira) && !temItensIndividuais;
   let mensagemWhatsApp = "";
-
 
   if (sol.status === "Concluída") {
     const listaItensRecolhidos = isCompraInteira
@@ -2588,45 +2272,32 @@ Bigmais em Casa, é diferente!`;
           })
           .join("\n");
 
-
     if (isTroca) {
       mensagemWhatsApp = `Olá, ${sol.cliente.nome}! Aqui é do Bigmais em Casa!
 
-
 Sua solicitação de troca referente ao pedido #${sol.numeroPedido} foi concluída com sucesso.
-
 
 Protocolo: ${sol.protocolo}
 
-
 Itens trocados: 
-
 
 ${listaItensRecolhidos}
 
-
 Qualquer dúvida, estamos à disposição para te ajudar!
-
 
 Bigmais em Casa, é diferente!`;
     } else {
       mensagemWhatsApp = `Olá, ${sol.cliente.nome}! Aqui é do Bigmais em Casa!
 
-
 Sua solicitação de devolução referente ao pedido #${sol.numeroPedido} foi efetuada com sucesso.
-
 
 Protocolo: ${sol.protocolo}
 
-
 Itens recolhidos: 
-
 
 ${listaItensRecolhidos}
 
-
 Entraremos em contato para darmos seguimento ao estorno do valor pago. Qualquer dúvida, estamos à disposição para te ajudar!
-
 
 Bigmais em Casa, é diferente!`;
     }
@@ -2640,43 +2311,32 @@ Bigmais em Casa, é diferente!`;
           })
           .join("\n");
 
-
     const tipoTexto = isTroca ? "troca" : "devolução";
     const fraseLogistica = sol.entregueEmLoja
       ? `Conforme combinado, aguardamos a entrega do(s) produto(s) na unidade ${sol.loja || "Bigmais"}.`
       : `Assim que o motorista estiver em rota, entraremos em contato.`;
 
-
     mensagemWhatsApp = `Olá, ${sol.cliente.nome}! Aqui é do Bigmais em Casa!
-
 
 Sua solicitação de ${tipoTexto} referente ao pedido #${sol.numeroPedido} foi registrada com sucesso.
 
-
 Protocolo: ${sol.protocolo}
-
 
 Itens da solicitação: 
 
-
 ${listaItensTexto}
 
-
 ${fraseLogistica} Qualquer dúvida, estamos à disposição para te ajudar!
-
 
 Bigmais em Casa, é diferente!`;
   }
 
-
   const urlWhatsApp = `https://wa.me/${telefoneLimpo}?text=${encodeURIComponent(mensagemWhatsApp)}`;
   window.open(urlWhatsApp, "_blank");
-
 
   if (!sol.whatsappEnviado) {
     cacheSolicitacoes[indice].whatsappEnviado = true;
     renderizarTabela(false);
-
 
     fetch(URL_API_PLANILHA, {
       method: "POST",
@@ -2690,6 +2350,5 @@ Bigmais em Casa, é diferente!`;
     );
   }
 }
-
 
 carregarSolicitacoesDaPlanilha();
