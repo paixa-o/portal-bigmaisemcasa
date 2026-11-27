@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   bump-version:
+    if: github.repository == 'paixa-o/portal-bigmaisemcasa'
     runs-on: ubuntu-latest
 
     steps:
