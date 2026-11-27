@@ -89,18 +89,32 @@ if (elVersaoRodape && typeof VERSAO_PORTAL !== "undefined") {
 }
 
 // Fecha qualquer menu de três pontinhos aberto ao clicar fora, rolar ou redimensionar
+let bloqueioScrollDropdownAte = 0;
+
 document.addEventListener("click", (event) => {
-  if (!event.target.closest(".menu-tres-pontinhos-wrapper")) {
+  if (
+    !event.target.closest(".menu-tres-pontinhos-wrapper") &&
+    !event.target.closest(".dropdown-acoes")
+  ) {
     fecharTodosMenusDropdown();
   }
 });
 
-window.addEventListener("scroll", fecharTodosMenusDropdown, true);
+window.addEventListener(
+  "scroll",
+  () => {
+    if (Date.now() < bloqueioScrollDropdownAte) return;
+    fecharTodosMenusDropdown();
+  },
+  true
+);
+
 window.addEventListener("resize", fecharTodosMenusDropdown);
 
 function fecharTodosMenusDropdown() {
   document.querySelectorAll(".dropdown-acoes.aberto").forEach((menu) => {
     menu.classList.remove("aberto");
+    menu.style.display = "none";
   });
 }
 
@@ -113,21 +127,29 @@ function alternarMenuDropdown(event, protocolo) {
   fecharTodosMenusDropdown();
 
   if (menuAlvo && !estavaAberto) {
+    bloqueioScrollDropdownAte = Date.now() + 180;
+    menuAlvo.style.display = "block";
     menuAlvo.classList.add("aberto");
 
     const rectBotao = botao.getBoundingClientRect();
     const rectMenu = menuAlvo.getBoundingClientRect();
 
-    let left = rectBotao.right - rectMenu.width;
-    if (left < 10) left = 10;
+    const larguraMenu = rectMenu.width || 225;
+    const alturaMenu = rectMenu.height || 220;
 
-    let top = rectBotao.bottom + 4;
-    if (top + rectMenu.height > window.innerHeight - 10) {
-      top = Math.max(10, rectBotao.top - rectMenu.height - 4);
+    let left = rectBotao.right - larguraMenu;
+    if (left < 10) left = 10;
+    if (left + larguraMenu > window.innerWidth - 10) {
+      left = Math.max(10, window.innerWidth - larguraMenu - 10);
     }
 
-    menuAlvo.style.left = `${left}px`;
-    menuAlvo.style.top = `${top}px`;
+    let top = rectBotao.bottom + 4;
+    if (top + alturaMenu > window.innerHeight - 10) {
+      top = Math.max(10, rectBotao.top - alturaMenu - 4);
+    }
+
+    menuAlvo.style.left = `${Math.round(left)}px`;
+    menuAlvo.style.top = `${Math.round(top)}px`;
   }
 }
 
