@@ -2,20 +2,33 @@
 name: Sincronizar com Bigmais
 
 on:
-  push:
+  workflow_run:
+    workflows:
+      - Atualizar Versão do Portal
+    types:
+      - completed
     branches:
       - main
 
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: sincronizacao-bigmais
+  cancel-in-progress: false
+
 jobs:
   sincronizar:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
 
     steps:
       - name: Baixar repositório pessoal
         uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
           persist-credentials: false
 
@@ -29,5 +42,7 @@ jobs:
           BIGMAIS_TOKEN: ${{ secrets.BIGMAIS_TOKEN }}
         run: |
           git remote add bigmais https://x-access-token:${BIGMAIS_TOKEN}@github.com/bigmaisemcasa/portal-bigmaisemcasa.git
-          git push bigmais --all
-          git push bigmais --tags
+
+          git push --force bigmais HEAD:refs/heads/main
+
+          git push --force bigmais --tags
