@@ -17,9 +17,17 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
+
+      - name: Configurar Git
+        run: |
+          git config user.name "Bigmais Sync"
+          git config user.email "sync@bigmaisemcasa.com"
 
       - name: Sincronizar com Bigmais
+        env:
+          BIGMAIS_TOKEN: ${{ secrets.BIGMAIS_TOKEN }}
         run: |
-          git remote add bigmais https://x-access-token:${{ secrets.BIGMAIS_TOKEN }}@github.com/bigmaisemcasa/portal-bigmaisemcasa.git
+          git remote add bigmais https://x-access-token:${BIGMAIS_TOKEN}@github.com/bigmaisemcasa/portal-bigmaisemcasa.git
           git push bigmais --all
           git push bigmais --tags
